@@ -71,7 +71,6 @@ import org.apache.hadoop.util.Time;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.sun.jmx.mbeanserver.Introspector;
 
 import static org.apache.hadoop.hdds.security.x509.certificate.utils.CertificateCodec.getX509Certificate;
 import static org.apache.hadoop.hdds.security.x509.certificates.utils.CertificateSignRequest.getEncodedString;
@@ -152,7 +151,6 @@ public class HddsDatanodeService extends GenericCli implements ServicePlugin {
 
   public static void main(String[] args) {
     try {
-      Introspector.checkCompliance(DNMXBeanImpl.class);
       HddsDatanodeService hddsDatanodeService =
           createHddsDatanodeService(args, true);
       hddsDatanodeService.run(args);

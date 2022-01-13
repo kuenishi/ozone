@@ -23,8 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.lang3.SystemUtils;
-import org.apache.hadoop.hdds.utils.SignalLogger;
 import org.apache.hadoop.hdds.utils.VersionInfo;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.util.ShutdownHookManager;
@@ -113,13 +111,6 @@ public final class StringUtils {
           args));
     }
 
-    if (SystemUtils.IS_OS_UNIX) {
-      try {
-        SignalLogger.INSTANCE.register(log);
-      } catch (Throwable t) {
-        log.warn("failed to register any UNIX signal loggers: ", t);
-      }
-    }
     ShutdownHookManager.get().addShutdownHook(
         () -> log.info(toStartupShutdownString("SHUTDOWN_MSG: ",
             "Shutting down " + className + " at " + hostname)),

@@ -128,6 +128,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 
     <bouncycastle.version>1.67</bouncycastle.version>
 
+    <jvmArgs>
+      <jvmArg>--add-exports=javafx.web/sun.misc.Unsafe=ALL-UNNAMED</jvmArg>
+    </jvmArgs>
     <!-- jersey version -->
     <jersey.version>1.19</jersey.version>
     <jersey2.version>2.33</jersey2.version>
