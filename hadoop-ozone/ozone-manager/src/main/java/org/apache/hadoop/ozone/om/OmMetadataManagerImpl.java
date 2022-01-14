@@ -933,12 +933,14 @@ public class OmMetadataManagerImpl implements OMMetadataManager {
       // we should skip that entry and return the result.
       while (currentCount < maxKeys + 1 && keyIter.hasNext()) {
         kv = keyIter.next();
-        if (kv != null && kv.getKey().startsWith(seekPrefix)) {
+
+        String k = kv.getKey();
+        if (kv != null && k.startsWith(seekPrefix)) {
 
           // Entry should not be marked for delete, consider only those
           // entries.
-          if(!deletedKeySet.contains(kv.getKey())) {
-            cacheKeyMap.put(kv.getKey(), kv.getValue());
+          if(!deletedKeySet.contains(k)) {
+            cacheKeyMap.put(k, kv.getValue());
             currentCount++;
           }
         } else {
