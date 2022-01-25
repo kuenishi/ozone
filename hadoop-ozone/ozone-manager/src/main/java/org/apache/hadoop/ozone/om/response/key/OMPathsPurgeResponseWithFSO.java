@@ -109,13 +109,10 @@ public class OMPathsPurgeResponseWithFSO extends OmKeyResponse {
             keyInfo.getKeyName(), ozoneDbKey);
       }
 
-      RepeatedOmKeyInfo repeatedOmKeyInfo = null;
-      repeatedOmKeyInfo = OmUtils.prepareKeyForDelete(keyInfo,
-          repeatedOmKeyInfo, keyInfo.getUpdateID(), isRatisEnabled);
-
-      String deletedKey = omMetadataManager
-          .getOzoneKey(keyInfo.getVolumeName(), keyInfo.getBucketName(),
-              keyInfo.getKeyName());
+      String deletedKey = OmUtils.keyForDeleteTable(keyInfo);
+      RepeatedOmKeyInfo repeatedOmKeyInfo =
+          OmUtils.prepareKeyForDelete(keyInfo,
+          keyInfo.getUpdateID(), isRatisEnabled);
 
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
           deletedKey, repeatedOmKeyInfo);

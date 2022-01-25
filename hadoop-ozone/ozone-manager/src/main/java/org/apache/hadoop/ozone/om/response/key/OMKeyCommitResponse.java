@@ -18,11 +18,11 @@
 
 package org.apache.hadoop.ozone.om.response.key;
 
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.response.CleanupTableInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
@@ -41,20 +41,23 @@ import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.OPEN_KEY_TABLE;
 public class OMKeyCommitResponse extends OmKeyResponse {
 
   private OmKeyInfo omKeyInfo;
+  private OmKeyInfo omOldKeyInfo;
   private String ozoneKeyName;
   private String openKeyName;
   private OmBucketInfo omBucketInfo;
-  private RepeatedOmKeyInfo keysToDelete;
+  private boolean isRatisEnabled;
 
   public OMKeyCommitResponse(@Nonnull OMResponse omResponse,
       @Nonnull OmKeyInfo omKeyInfo, String ozoneKeyName, String openKeyName,
-      @Nonnull OmBucketInfo omBucketInfo, RepeatedOmKeyInfo keysToDelete) {
+      @Nonnull OmBucketInfo omBucketInfo, OmKeyInfo omOldKeyInfo,
+      boolean isRatisEnabled) {
     super(omResponse, omBucketInfo.getBucketLayout());
     this.omKeyInfo = omKeyInfo;
     this.ozoneKeyName = ozoneKeyName;
     this.openKeyName = openKeyName;
     this.omBucketInfo = omBucketInfo;
-    this.keysToDelete = keysToDelete;
+    this.omOldKeyInfo = omOldKeyInfo;
+    this.isRatisEnabled = isRatisEnabled;
   }
 
   /**
@@ -104,9 +107,10 @@ public class OMKeyCommitResponse extends OmKeyResponse {
 
   protected void updateDeletedTable(OMMetadataManager omMetadataManager,
       BatchOperation batchOperation) throws IOException {
-    if (this.keysToDelete != null) {
-      omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-              ozoneKeyName, keysToDelete);
-    }
+
+    omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
+        OmUtils.keyForDeleteTable(omOldKeyInfo),
+        OmUtils.prepareKeyForDelete(omOldKeyInfo,
+            omOldKeyInfo.getUpdateID(), isRatisEnabled));
   }
 }

@@ -46,9 +46,7 @@ import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
-import org.apache.hadoop.ozone.om.request.file.OMFileRequest;
 import org.apache.hadoop.ozone.om.request.key.OMKeyRequest;
 import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
 import org.apache.hadoop.ozone.om.response.OMClientResponse;
@@ -210,13 +208,6 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
           }
         }
 
-        // If bucket versioning is turned on during the update, between key
-        // creation and key commit, old versions will be just overwritten and
-        // not kept. Bucket versioning will be effective from the first key
-        // creation after the knob turned on.
-        RepeatedOmKeyInfo keysToDelete = getOldVersionsToCleanUp(dbOzoneKey,
-            omMetadataManager, omBucketInfo.getIsVersionEnabled(),
-            trxnLogIndex, ozoneManager.isRatisEnabled());
         OmKeyInfo keyToDelete =
             omMetadataManager.getKeyTable(getBucketLayout()).get(dbOzoneKey);
         if (keyToDelete != null) {
@@ -228,11 +219,6 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
         updateCache(omMetadataManager, dbOzoneKey, dbMultipartOpenKey,
             multipartKey, omKeyInfo, trxnLogIndex);
 
-        if (keysToDelete != null) {
-          OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbOzoneKey,
-                  keysToDelete, trxnLogIndex);
-        }
-
         omResponse.setCompleteMultiPartUploadResponse(
             MultipartUploadCompleteResponse.newBuilder()
                 .setVolume(requestedVolume)
@@ -242,7 +228,7 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
 
         omClientResponse =
             getOmClientResponse(multipartKey, omResponse, dbMultipartOpenKey,
-                omKeyInfo, unUsedParts, omBucketInfo, keysToDelete);
+                omKeyInfo, unUsedParts, omBucketInfo);
 
         result = Result.SUCCESS;
       } else {
@@ -280,11 +266,11 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
   protected OMClientResponse getOmClientResponse(String multipartKey,
       OMResponse.Builder omResponse, String dbMultipartOpenKey,
       OmKeyInfo omKeyInfo,  List<OmKeyInfo> unUsedParts,
-      OmBucketInfo omBucketInfo, RepeatedOmKeyInfo keysToDelete) {
+      OmBucketInfo omBucketInfo) {
 
     return new S3MultipartUploadCompleteResponse(omResponse.build(),
         multipartKey, dbMultipartOpenKey, omKeyInfo, unUsedParts,
-        getBucketLayout(), omBucketInfo, keysToDelete);
+        getBucketLayout(), omBucketInfo);
   }
 
   protected void checkDirectoryAlreadyExists(OzoneManager ozoneManager,

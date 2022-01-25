@@ -751,12 +751,11 @@ public final class TestOMRequestUtils {
     omMetadataManager.getKeyTable(getDefaultBucketLayout()).delete(ozoneKey);
 
     RepeatedOmKeyInfo repeatedOmKeyInfo =
-        omMetadataManager.getDeletedTable().get(ozoneKey);
+        OmUtils.prepareKeyForDelete(omKeyInfo,
+        trxnLogIndex, true);
 
-    repeatedOmKeyInfo = OmUtils.prepareKeyForDelete(omKeyInfo,
-        repeatedOmKeyInfo, trxnLogIndex, true);
-
-    omMetadataManager.getDeletedTable().put(ozoneKey, repeatedOmKeyInfo);
+    omMetadataManager.getDeletedTable().put(
+            OmUtils.keyForDeleteTable(omKeyInfo), repeatedOmKeyInfo);
 
     return ozoneKey;
   }

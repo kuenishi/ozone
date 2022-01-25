@@ -21,6 +21,7 @@ package org.apache.hadoop.ozone.om.response.s3.multipart;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
@@ -55,7 +56,6 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
   private OmKeyInfo omKeyInfo;
   private List<OmKeyInfo> partsUnusedList;
   private OmBucketInfo omBucketInfo;
-  private RepeatedOmKeyInfo keysToDelete;
 
   @SuppressWarnings("checkstyle:ParameterNumber")
   public S3MultipartUploadCompleteResponse(
@@ -65,15 +65,13 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
       @Nonnull OmKeyInfo omKeyInfo,
       @Nonnull List<OmKeyInfo> unUsedParts,
       @Nonnull BucketLayout bucketLayout,
-      @Nonnull OmBucketInfo omBucketInfo,
-      RepeatedOmKeyInfo keysToDelete) {
+      @Nonnull OmBucketInfo omBucketInfo) {
     super(omResponse, bucketLayout);
     this.partsUnusedList = unUsedParts;
     this.multipartKey = multipartKey;
     this.multipartOpenKey = multipartOpenKey;
     this.omKeyInfo = omKeyInfo;
     this.omBucketInfo = omBucketInfo;
-    this.keysToDelete = keysToDelete;
   }
 
   /**
@@ -97,22 +95,16 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
         multipartKey);
 
     // 2. Add key to KeyTable
-    String ozoneKey = addToKeyTable(omMetadataManager, batchOperation);
+    addToKeyTable(omMetadataManager, batchOperation);
 
     // 3. Delete unused parts
     if (!partsUnusedList.isEmpty()) {
-      // Add unused parts to deleted key table.
-      if (keysToDelete == null) {
-        keysToDelete = new RepeatedOmKeyInfo(partsUnusedList);
-      } else {
-        for (OmKeyInfo unusedParts : partsUnusedList) {
-          keysToDelete.addOmKeyInfo(unusedParts);
-        }
-      }
-    }
-    if (keysToDelete != null) {
+      // Assuming omKeyInfo has a unique UpdateID. On deletion of the newly
+      // created omKeyInfo, another UpdateID will be assigned according to the
+      // transaction ID.
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-          ozoneKey, keysToDelete);
+          OmUtils.keyForDeleteTable(omKeyInfo),
+          new RepeatedOmKeyInfo(partsUnusedList));
     }
 
     // update bucket usedBytes.

@@ -62,7 +62,7 @@ public class TestOMKeyCommitResponse extends TestOMKeyResponse {
 
     String ozoneKey = getOzoneKey();
     OMKeyCommitResponse omKeyCommitResponse = getOmKeyCommitResponse(
-            omKeyInfo, omResponse, openKey, ozoneKey, keysToDelete);
+            omKeyInfo, omResponse, openKey, ozoneKey);
 
     omKeyCommitResponse.addToDBBatch(omMetadataManager, batchOperation);
 
@@ -96,7 +96,7 @@ public class TestOMKeyCommitResponse extends TestOMKeyResponse {
     String ozoneKey = getOzoneKey();
 
     OMKeyCommitResponse omKeyCommitResponse = getOmKeyCommitResponse(
-            omKeyInfo, omResponse, openKey, ozoneKey, null);
+            omKeyInfo, omResponse, openKey, ozoneKey);
 
     // As during commit Key, entry will be already there in openKeyTable.
     // Adding it here.
@@ -125,13 +125,13 @@ public class TestOMKeyCommitResponse extends TestOMKeyResponse {
             .setVolumeName(volumeName).setBucketName(bucketName)
             .setCreationTime(Time.now()).build();
     OmKeyInfo omKeyInfo = getOmKeyInfo();
-    keysToDelete =
-            OmUtils.prepareKeyForDelete(omKeyInfo, null, 100, false);
+    keysToDelete = OmUtils.prepareKeyForDelete(omKeyInfo, 100, false);
     Assert.assertNotNull(keysToDelete);
     testAddToDBBatch();
 
+    String deleteKey = OmUtils.keyForDeleteTable(omKeyInfo);
     RepeatedOmKeyInfo keysInDeleteTable =
-            omMetadataManager.getDeletedTable().get(getOzoneKey());
+            omMetadataManager.getDeletedTable().get(deleteKey);
     Assert.assertNotNull(keysInDeleteTable);
     Assert.assertEquals(1, keysInDeleteTable.getOmKeyInfoList().size());
 
@@ -153,9 +153,9 @@ public class TestOMKeyCommitResponse extends TestOMKeyResponse {
   @NotNull
   protected OMKeyCommitResponse getOmKeyCommitResponse(OmKeyInfo omKeyInfo,
           OzoneManagerProtocolProtos.OMResponse omResponse, String openKey,
-          String ozoneKey, RepeatedOmKeyInfo deleteKeys) {
+          String ozoneKey) {
     Assert.assertNotNull(omBucketInfo);
     return new OMKeyCommitResponse(omResponse, omKeyInfo, ozoneKey, openKey,
-            omBucketInfo, deleteKeys);
+            omBucketInfo, null, true);
   }
 }

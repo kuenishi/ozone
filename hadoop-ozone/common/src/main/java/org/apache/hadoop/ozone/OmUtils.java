@@ -462,6 +462,25 @@ public final class OmUtils {
   }
 
   /**
+   * The key in deletion table is hex-encoded String of UpdateID, which is
+   * updated on processing deletion (or multipart-abort, or overwrite),
+   * assuming UpdateID is already set during the OMKeyRequest. It is
+   * monotonically increasing and guaranteed to be unique across the cluster,
+   * and across the OM fail over. Thus, keys in deletion table are sorted in
+   * the order of actual deletion called by clients. Older deleted keys are
+   * processed earlier by deletion worker, and newer keys are processed later.
+   * The UpdateID also preserves its order, between non-Ratis and
+   * Ratis-enabled OM, due to the first-bit-trick epoch. See HDDS-4315 for
+   * detailed design of ObjectIDs and UpdateIDs.
+   *
+   * @param omKeyInfo
+   * @return Unique and monotonically increasing String for deletion table
+   */
+  public static String keyForDeleteTable(OmKeyInfo omKeyInfo) {
+    return Long.toHexString(omKeyInfo.getUpdateID());
+  }
+
+  /**
    * Prepares key info to be moved to deletedTable.
    * 1. It strips GDPR metadata from key info
    * 2. For given object key, if the repeatedOmKeyInfo instance is null, it
@@ -479,8 +498,7 @@ public final class OmUtils {
    * @return {@link RepeatedOmKeyInfo}
    */
   public static RepeatedOmKeyInfo prepareKeyForDelete(OmKeyInfo keyInfo,
-      RepeatedOmKeyInfo repeatedOmKeyInfo, long trxnLogIndex,
-      boolean isRatisEnabled) {
+      long trxnLogIndex, boolean isRatisEnabled) {
     // If this key is in a GDPR enforced bucket, then before moving
     // KeyInfo to deletedTable, remove the GDPR related metadata and
     // FileEncryptionInfo from KeyInfo.
@@ -494,15 +512,7 @@ public final class OmUtils {
     // Set the updateID
     keyInfo.setUpdateID(trxnLogIndex, isRatisEnabled);
 
-    if(repeatedOmKeyInfo == null) {
-      //The key doesn't exist in deletedTable, so create a new instance.
-      repeatedOmKeyInfo = new RepeatedOmKeyInfo(keyInfo);
-    } else {
-      //The key exists in deletedTable, so update existing instance.
-      repeatedOmKeyInfo.addOmKeyInfo(keyInfo);
-    }
-
-    return repeatedOmKeyInfo;
+    return new RepeatedOmKeyInfo(keyInfo);
   }
 
   /**

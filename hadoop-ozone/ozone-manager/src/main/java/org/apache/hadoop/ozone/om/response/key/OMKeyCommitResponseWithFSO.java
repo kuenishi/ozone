@@ -23,7 +23,6 @@ import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.request.file.OMFileRequest;
 import org.apache.hadoop.ozone.om.response.CleanupTableInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
@@ -46,9 +45,10 @@ public class OMKeyCommitResponseWithFSO extends OMKeyCommitResponse {
                                @Nonnull OmKeyInfo omKeyInfo,
                                String ozoneKeyName, String openKeyName,
                                @Nonnull OmBucketInfo omBucketInfo,
-                               RepeatedOmKeyInfo deleteKeys) {
+                               OmKeyInfo omOldKeyInfo,
+                               boolean isRatisEnabled) {
     super(omResponse, omKeyInfo, ozoneKeyName, openKeyName,
-            omBucketInfo, deleteKeys);
+            omBucketInfo, omOldKeyInfo, isRatisEnabled);
   }
 
   /**

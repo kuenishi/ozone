@@ -173,6 +173,10 @@ public class TestOMKeyDeleteResponse extends TestOMKeyResponse {
 
   }
 
+  @Test
+  public void testDeletionTable() {
+  }
+
   protected String addKeyToTable() throws Exception {
     String ozoneKey = omMetadataManager.getOzoneKey(volumeName, bucketName,
             keyName);

@@ -85,6 +85,8 @@ public class OMKeysDeleteResponse extends AbstractOMKeyDeleteResponse {
       String deleteKey = omMetadataManager.getOzoneKey(volumeName, bucketName,
           keyName);
 
+      // TODO: this is bad; fix accordingly, using putting all omKeyInfos into
+      //  the same single RepeatedKeyInfo
       addDeletionToBatch(omMetadataManager, batchOperation, keyTable,
           deleteKey, omKeyInfo);
     }

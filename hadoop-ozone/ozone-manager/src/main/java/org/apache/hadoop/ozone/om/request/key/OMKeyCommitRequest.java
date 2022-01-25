@@ -35,9 +35,7 @@ import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OzoneFSUtils;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
-import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
-import org.apache.hadoop.ozone.om.request.file.OMFileRequest;
 import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.slf4j.Logger;
@@ -214,11 +212,9 @@ public class OMKeyCommitRequest extends OMKeyRequest {
       // creation and key commit, old versions will be just overwritten and
       // not kept. Bucket versioning will be effective from the first key
       // creation after the knob turned on.
-      RepeatedOmKeyInfo keysToDelete = getOldVersionsToCleanUp(dbOzoneKey,
-          omMetadataManager, omBucketInfo.getIsVersionEnabled(), trxnLogIndex,
-          ozoneManager.isRatisEnabled());
       OmKeyInfo keyToDelete =
-              omMetadataManager.getKeyTable(getBucketLayout()).get(dbOzoneKey);
+          omMetadataManager.getKeyTable(getBucketLayout()).get(dbOzoneKey);
+      keyToDelete.setUpdateID(trxnLogIndex, ozoneManager.isRatisEnabled());
 
       // Add to cache of open key table and key table.
       omMetadataManager.getOpenKeyTable(getBucketLayout()).addCacheEntry(
@@ -228,11 +224,6 @@ public class OMKeyCommitRequest extends OMKeyRequest {
       omMetadataManager.getKeyTable(getBucketLayout()).addCacheEntry(
           new CacheKey<>(dbOzoneKey),
           new CacheValue<>(Optional.of(omKeyInfo), trxnLogIndex));
-
-      if (keysToDelete != null) {
-        OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbOzoneKey,
-                keysToDelete, trxnLogIndex);
-      }
 
       long scmBlockSize = ozoneManager.getScmBlockSize();
       int factor = omKeyInfo.getReplicationConfig().getRequiredNodes();
@@ -253,7 +244,7 @@ public class OMKeyCommitRequest extends OMKeyRequest {
 
       omClientResponse = new OMKeyCommitResponse(omResponse.build(),
           omKeyInfo, dbOzoneKey, dbOpenKey, omBucketInfo.copyObject(),
-          keysToDelete);
+          keyToDelete, ozoneManager.isRatisEnabled());
 
       result = Result.SUCCESS;
     } catch (IOException ex) {

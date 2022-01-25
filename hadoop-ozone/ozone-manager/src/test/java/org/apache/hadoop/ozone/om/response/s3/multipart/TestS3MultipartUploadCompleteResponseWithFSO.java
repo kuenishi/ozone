@@ -110,7 +110,7 @@ public class TestS3MultipartUploadCompleteResponseWithFSO
             createS3CompleteMPUResponseFSO(volumeName, bucketName, parentID,
                 keyName, multipartUploadID, omKeyInfoFSO,
                 OzoneManagerProtocolProtos.Status.OK, unUsedParts,
-                omBucketInfo, null);
+                omBucketInfo);
 
     s3MultipartUploadCompleteResponse.addToDBBatch(omMetadataManager,
         batchOperation);
@@ -231,7 +231,7 @@ public class TestS3MultipartUploadCompleteResponseWithFSO
             createS3CompleteMPUResponseFSO(volumeName, bucketName, parentID,
                     keyName, multipartUploadID, omKeyInfoFSO,
                     OzoneManagerProtocolProtos.Status.OK, unUsedParts,
-                    omBucketInfo, null);
+                    omBucketInfo);
 
     s3MultipartUploadCompleteResponse.addToDBBatch(omMetadataManager,
             batchOperation);
