@@ -115,9 +115,9 @@ public class OMKeyCommitRequest extends OMKeyRequest {
 
     KeyArgs commitKeyArgs = commitKeyRequest.getKeyArgs();
 
-    String volumeName = commitKeyArgs.getVolumeName();
-    String bucketName = commitKeyArgs.getBucketName();
-    String keyName = commitKeyArgs.getKeyName();
+    volumeName = commitKeyArgs.getVolumeName();
+    bucketName = commitKeyArgs.getBucketName();
+    keyName = commitKeyArgs.getKeyName();
 
     OMMetrics omMetrics = ozoneManager.getMetrics();
     omMetrics.incNumKeyCommits();
@@ -130,7 +130,7 @@ public class OMKeyCommitRequest extends OMKeyRequest {
         getOmRequest());
 
     IOException exception = null;
-    OmKeyInfo omKeyInfo = null;
+
     OmBucketInfo omBucketInfo = null;
     OMClientResponse omClientResponse = null;
     boolean bucketLockAcquired = false;
@@ -148,7 +148,7 @@ public class OMKeyCommitRequest extends OMKeyRequest {
           keyName, IAccessAuthorizer.ACLType.WRITE,
           commitKeyRequest.getClientID());
 
-      String dbOzoneKey =
+      dbKey =
           omMetadataManager.getOzoneKey(volumeName, bucketName,
               keyName);
       String dbOpenKey = omMetadataManager.getOpenKey(volumeName, bucketName,
@@ -193,7 +193,7 @@ public class OMKeyCommitRequest extends OMKeyRequest {
       }
 
       omKeyInfo =
-          omMetadataManager.getOpenKeyTable(getBucketLayout()).get(dbOpenKey);
+          omMetadataManager.getOpenKeyTable(getBucketLayout()).get(dbOpenKey));
       if (omKeyInfo == null) {
         throw new OMException("Failed to commit key, as " + dbOpenKey +
             "entry is not found in the OpenKey table", KEY_NOT_FOUND);
@@ -214,25 +214,22 @@ public class OMKeyCommitRequest extends OMKeyRequest {
       // creation and key commit, old versions will be just overwritten and
       // not kept. Bucket versioning will be effective from the first key
       // creation after the knob turned on.
-      RepeatedOmKeyInfo oldKeyVersionsToDelete = null;
-      OmKeyInfo keyToDelete =
-          omMetadataManager.getKeyTable(getBucketLayout()).get(dbOzoneKey);
-      if (keyToDelete != null && !omBucketInfo.getIsVersionEnabled()) {
-        oldKeyVersionsToDelete = getOldVersionsToCleanUp(dbOzoneKey,
-            keyToDelete, omMetadataManager,
-            trxnLogIndex, ozoneManager.isRatisEnabled());
-      }
+      previousOmKeyInfo = Optional.ofNullable(
+          omMetadataManager.getKeyTable(getBucketLayout()).get(dbKey));
+      RepeatedOmKeyInfo oldKeyVersionsToDelete = getOldVersionsToCleanUp(omMetadataManager,
+            trxnLogIndex, omBucketInfo.getIsVersionEnabled(), ozoneManager.isRatisEnabled());
+
       // Add to cache of open key table and key table.
       omMetadataManager.getOpenKeyTable(getBucketLayout()).addCacheEntry(
           new CacheKey<>(dbOpenKey),
           new CacheValue<>(Optional.absent(), trxnLogIndex));
 
       omMetadataManager.getKeyTable(getBucketLayout()).addCacheEntry(
-          new CacheKey<>(dbOzoneKey),
+          new CacheKey<>(dbKey),
           new CacheValue<>(Optional.of(omKeyInfo), trxnLogIndex));
 
       if (oldKeyVersionsToDelete != null) {
-        OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbOzoneKey,
+        OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbKey,
             oldKeyVersionsToDelete, trxnLogIndex);
       }
 
@@ -242,19 +239,15 @@ public class OMKeyCommitRequest extends OMKeyRequest {
       // Block was pre-requested and UsedBytes updated when createKey and
       // AllocatedBlock. The space occupied by the Key shall be based on
       // the actual Key size, and the total Block size applied before should
-      // be subtracted.
+      // be subtracted. The size of overwritten key size is also subtracted,
+      // if it exists.
       long correctedSpace = omKeyInfo.getDataSize() * factor -
-          allocatedLocationInfoList.size() * scmBlockSize * factor;
-      // Subtract the size of blocks to be overwritten.
-      if (keyToDelete != null) {
-        correctedSpace -= keyToDelete.getDataSize() *
-            keyToDelete.getReplicationConfig().getRequiredNodes();
-      }
-
+          allocatedLocationInfoList.size() * scmBlockSize * factor -
+          previousKeyDataSize();
       omBucketInfo.incrUsedBytes(correctedSpace);
 
       omClientResponse = new OMKeyCommitResponse(omResponse.build(),
-          omKeyInfo, dbOzoneKey, dbOpenKey, omBucketInfo.copyObject(),
+          omKeyInfo, dbKey, dbOpenKey, omBucketInfo.copyObject(),
           oldKeyVersionsToDelete);
 
       result = Result.SUCCESS;

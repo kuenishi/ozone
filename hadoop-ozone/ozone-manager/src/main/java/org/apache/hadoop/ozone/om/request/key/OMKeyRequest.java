@@ -97,6 +97,16 @@ public abstract class OMKeyRequest extends OMClientRequest {
   private static final Logger LOG = LoggerFactory.getLogger(OMKeyRequest.class);
 
   private BucketLayout bucketLayout = BucketLayout.DEFAULT;
+  protected String volumeName;
+  protected String bucketName;
+  protected String keyName;
+  // A string to pull active OmKeyInfo from keyTable.
+  // According to the context, this can be both dbOzoneKey or dbFileKey.
+  // Under FSO, this is dbFileKey and otherwise it's dbOzoneKey.
+  protected String dbKey;
+  // Used in case of overwrite, key commit and multipart complete
+  protected Optional<OmKeyInfo> previousOmKeyInfo;
+  protected OmKeyInfo omKeyInfo;
 
   public OMKeyRequest(OMRequest omRequest) {
     super(omRequest);
@@ -784,19 +794,30 @@ public abstract class OMKeyRequest extends OMClientRequest {
    * @throws IOException
    */
   protected RepeatedOmKeyInfo getOldVersionsToCleanUp(
-      String dbOzoneKey, OmKeyInfo keyToDelete,
       OMMetadataManager omMetadataManager, long trxnLogIndex,
+      boolean isVersionEnabled,
       boolean isRatisEnabled) throws IOException {
-
+    if (isVersionEnabled) {
+      return null;
+    }
     // Past keys that was deleted but still in deleted table,
     // waiting for deletion service.
     RepeatedOmKeyInfo keysToDelete =
-        omMetadataManager.getDeletedTable().get(dbOzoneKey);
+        omMetadataManager.getDeletedTable().get(dbKey);
 
-    if (keyToDelete != null) {
-      keysToDelete = OmUtils.prepareKeyForDelete(keyToDelete, keysToDelete,
-          trxnLogIndex, isRatisEnabled);
+    if (previousOmKeyInfo.isPresent()) {
+      keysToDelete = OmUtils.prepareKeyForDelete(previousOmKeyInfo.get(),
+          keysToDelete, trxnLogIndex, isRatisEnabled);
     }
     return keysToDelete;
+  }
+
+  // Returns the object size of previousOmKeyInfo if it exists.
+  protected long previousKeyDataSize() {
+    if (previousOmKeyInfo.isPresent()) {
+      return previousOmKeyInfo.get().getDataSize() *
+              previousOmKeyInfo.get().getReplicationConfig().getRequiredNodes();
+    }
+    return 0;
   }
 }

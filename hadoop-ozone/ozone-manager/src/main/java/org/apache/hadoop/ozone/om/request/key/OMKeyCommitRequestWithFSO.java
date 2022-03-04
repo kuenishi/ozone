@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.ozone.om.request.key;
 
+import com.google.common.base.Optional;
 import org.apache.hadoop.ozone.audit.AuditLogger;
 import org.apache.hadoop.ozone.audit.OMAction;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
@@ -72,9 +73,9 @@ public class OMKeyCommitRequestWithFSO extends OMKeyCommitRequest {
 
     KeyArgs commitKeyArgs = commitKeyRequest.getKeyArgs();
 
-    String volumeName = commitKeyArgs.getVolumeName();
-    String bucketName = commitKeyArgs.getBucketName();
-    String keyName = commitKeyArgs.getKeyName();
+    volumeName = commitKeyArgs.getVolumeName();
+    bucketName = commitKeyArgs.getBucketName();
+    keyName = commitKeyArgs.getKeyName();
 
     OMMetrics omMetrics = ozoneManager.getMetrics();
     omMetrics.incNumKeyCommits();
@@ -87,7 +88,6 @@ public class OMKeyCommitRequestWithFSO extends OMKeyCommitRequest {
             getOmRequest());
 
     IOException exception = null;
-    OmKeyInfo omKeyInfo = null;
     OmBucketInfo omBucketInfo = null;
     OMClientResponse omClientResponse = null;
     boolean bucketLockAcquired = false;
@@ -127,7 +127,7 @@ public class OMKeyCommitRequestWithFSO extends OMKeyCommitRequest {
       long parentID = OMFileRequest.getParentID(bucketId, pathComponents,
           keyName, omMetadataManager, "Cannot create file : " + keyName
               + " as parent directory doesn't exist");
-      String dbFileKey = omMetadataManager.getOzonePathKey(parentID, fileName);
+      dbKey = omMetadataManager.getOzonePathKey(parentID, fileName);
       dbOpenFileKey = omMetadataManager.getOpenFileName(parentID, fileName,
               commitKeyRequest.getClientID());
 
@@ -151,24 +151,21 @@ public class OMKeyCommitRequestWithFSO extends OMKeyCommitRequest {
       // creation and key commit, old versions will be just overwritten and
       // not kept. Bucket versioning will be effective from the first key
       // creation after the knob turned on.
-      RepeatedOmKeyInfo oldKeyVersionsToDelete = null;
-      OmKeyInfo keyToDelete =
-          omMetadataManager.getKeyTable(getBucketLayout()).get(dbFileKey);
-      if (keyToDelete != null && !omBucketInfo.getIsVersionEnabled()) {
-        oldKeyVersionsToDelete = getOldVersionsToCleanUp(dbFileKey,
-            keyToDelete, omMetadataManager,
-            trxnLogIndex, ozoneManager.isRatisEnabled());
-      }
+      previousOmKeyInfo =
+              Optional.fromNullable(omMetadataManager.getKeyTable(getBucketLayout()).get(dbKey));
+      RepeatedOmKeyInfo oldKeyVersionsToDelete = getOldVersionsToCleanUp(
+            omMetadataManager, trxnLogIndex, omBucketInfo.getIsVersionEnabled(),ozoneManager.isRatisEnabled());
+
 
       // Add to cache of open key table and key table.
-      OMFileRequest.addOpenFileTableCacheEntry(omMetadataManager, dbFileKey,
+      OMFileRequest.addOpenFileTableCacheEntry(omMetadataManager, dbKey,
               null, fileName, trxnLogIndex);
 
-      OMFileRequest.addFileTableCacheEntry(omMetadataManager, dbFileKey,
+      OMFileRequest.addFileTableCacheEntry(omMetadataManager, dbKey,
               omKeyInfo, fileName, trxnLogIndex);
 
       if (oldKeyVersionsToDelete != null) {
-        OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbFileKey,
+        OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbKey,
                 oldKeyVersionsToDelete, trxnLogIndex);
       }
 
@@ -177,18 +174,15 @@ public class OMKeyCommitRequestWithFSO extends OMKeyCommitRequest {
       // Block was pre-requested and UsedBytes updated when createKey and
       // AllocatedBlock. The space occupied by the Key shall be based on
       // the actual Key size, and the total Block size applied before should
-      // be subtracted.
+      // be subtracted. The size of overwritten key size is also subtracted,
+      // if it exists.
       long correctedSpace = omKeyInfo.getDataSize() * factor -
-              locationInfoList.size() * scmBlockSize * factor;
-      // Subtract the size of blocks to be overwritten.
-      if (keyToDelete != null) {
-        correctedSpace -= keyToDelete.getDataSize() *
-            keyToDelete.getReplicationConfig().getRequiredNodes();
-      }
+              locationInfoList.size() * scmBlockSize * factor -
+              previousKeyDataSize();
       omBucketInfo.incrUsedBytes(correctedSpace);
 
       omClientResponse = new OMKeyCommitResponseWithFSO(omResponse.build(),
-              omKeyInfo, dbFileKey, dbOpenFileKey, omBucketInfo.copyObject(),
+              omKeyInfo, dbKey, dbOpenFileKey, omBucketInfo.copyObject(),
               oldKeyVersionsToDelete);
 
       result = Result.SUCCESS;
