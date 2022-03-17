@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.ozone.om.response.key;
 
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
@@ -28,6 +29,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRespo
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
 
 import java.io.IOException;
+import java.util.List;
 import javax.annotation.Nonnull;
 
 import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.DELETED_TABLE;
@@ -44,17 +46,17 @@ public class OMKeyCommitResponse extends OmKeyResponse {
   private String ozoneKeyName;
   private String openKeyName;
   private OmBucketInfo omBucketInfo;
-  private RepeatedOmKeyInfo keysToDelete;
+  private RepeatedOmKeyInfo keyVersionsToDelete;
 
   public OMKeyCommitResponse(@Nonnull OMResponse omResponse,
       @Nonnull OmKeyInfo omKeyInfo, String ozoneKeyName, String openKeyName,
-      @Nonnull OmBucketInfo omBucketInfo, RepeatedOmKeyInfo keysToDelete) {
+      @Nonnull OmBucketInfo omBucketInfo, RepeatedOmKeyInfo keyVersionsToDelete) {
     super(omResponse, omBucketInfo.getBucketLayout());
     this.omKeyInfo = omKeyInfo;
     this.ozoneKeyName = ozoneKeyName;
     this.openKeyName = openKeyName;
     this.omBucketInfo = omBucketInfo;
-    this.keysToDelete = keysToDelete;
+    this.keyVersionsToDelete = keyVersionsToDelete;
   }
 
   /**
@@ -104,9 +106,12 @@ public class OMKeyCommitResponse extends OmKeyResponse {
 
   protected void updateDeletedTable(OMMetadataManager omMetadataManager,
       BatchOperation batchOperation) throws IOException {
-    if (this.keysToDelete != null) {
+    List<OmKeyInfo> omKeyInfos = keyVersionsToDelete.getOmKeyInfoList();
+    if (!omKeyInfos.isEmpty()) {
+      // Assuming all keyInfos has the same UpdateID
+      String key = OmUtils.keyForDeleteTable(omKeyInfos.get(0));
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-              ozoneKeyName, keysToDelete);
+              key, keyVersionsToDelete);
     }
   }
 }

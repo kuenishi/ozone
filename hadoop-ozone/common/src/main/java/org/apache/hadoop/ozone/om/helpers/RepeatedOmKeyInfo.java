@@ -18,6 +18,8 @@ package org.apache.hadoop.ozone.om.helpers;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
     .RepeatedKeyInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
@@ -38,9 +40,13 @@ public class RepeatedOmKeyInfo {
     this.omKeyInfoList = omKeyInfos;
   }
 
-  public RepeatedOmKeyInfo(OmKeyInfo omKeyInfos) {
+  public RepeatedOmKeyInfo(OmKeyInfo omKeyInfo) {
+    this();
+    this.omKeyInfoList.add(omKeyInfo);
+  }
+
+  public RepeatedOmKeyInfo() {
     this.omKeyInfoList = new ArrayList<>();
-    this.omKeyInfoList.add(omKeyInfos);
   }
 
   public void addOmKeyInfo(OmKeyInfo info) {
@@ -52,7 +58,7 @@ public class RepeatedOmKeyInfo {
   }
 
   public static RepeatedOmKeyInfo getFromProto(RepeatedKeyInfo
-      repeatedKeyInfo) {
+                                                       repeatedKeyInfo) {
     List<OmKeyInfo> list = new ArrayList<>();
     for (KeyInfo k : repeatedKeyInfo.getKeyInfoList()) {
       list.add(OmKeyInfo.getFromProtobuf(k));
@@ -61,18 +67,21 @@ public class RepeatedOmKeyInfo {
   }
 
   /**
-   *
    * @param compact, true for persistence, false for network transmit
    * @return
    */
   public RepeatedKeyInfo getProto(boolean compact, int clientVersion) {
+    if (omKeyInfoList.isEmpty()) {
+      throw new RuntimeException("RepeatedKeyInfo shall not be encoded if empty");
+    }
+
     List<KeyInfo> list = new ArrayList<>();
     for (OmKeyInfo k : omKeyInfoList) {
       list.add(k.getProtobuf(compact, clientVersion));
     }
 
     RepeatedKeyInfo.Builder builder = RepeatedKeyInfo.newBuilder()
-        .addAllKeyInfo(list);
+            .addAllKeyInfo(list);
     return builder.build();
   }
 
@@ -82,7 +91,8 @@ public class RepeatedOmKeyInfo {
   public static class Builder {
     private List<OmKeyInfo> omKeyInfos;
 
-    public Builder() { }
+    public Builder() {
+    }
 
     public Builder setOmKeyInfos(List<OmKeyInfo> infoList) {
       this.omKeyInfos = infoList;
@@ -96,5 +106,46 @@ public class RepeatedOmKeyInfo {
 
   public RepeatedOmKeyInfo copyObject() {
     return new RepeatedOmKeyInfo(new ArrayList<>(omKeyInfoList));
+  }
+
+  /**
+   * Prepares key info to be moved to deletedTable.
+   * 1. It strips GDPR metadata from key info
+   * 2. For given object key, if the repeatedOmKeyInfo instance is null, it
+   * implies that no entry for the object key exists in deletedTable so we
+   * create a new instance to include this key, else we update the existing
+   * repeatedOmKeyInfo instance.
+   * 3. Set the updateID to the transactionLogIndex.
+   *
+   * @param trxnLogIndex For Multipart keys, this is the transactionLogIndex
+   *                     of the MultipartUploadAbort request which needs to
+   *                     be set as the updateID of the partKeyInfos.
+   *                     For regular Key deletes, this value should be set to
+   *                     the same updateID as is in keyInfo.
+   */
+  public void prepareKeyForDelete(long trxnLogIndex, boolean isRatisEnabled) {
+    // If this key is in a GDPR enforced bucket, then before moving
+    // KeyInfo to deletedTable, remove the GDPR related metadata and
+    // FileEncryptionInfo from KeyInfo.
+    for (OmKeyInfo keyInfo : omKeyInfoList) {
+      if (Boolean.valueOf(keyInfo.getMetadata().get(OzoneConsts.GDPR_FLAG))) {
+        keyInfo.getMetadata().remove(OzoneConsts.GDPR_FLAG);
+        keyInfo.getMetadata().remove(OzoneConsts.GDPR_ALGORITHM);
+        keyInfo.getMetadata().remove(OzoneConsts.GDPR_SECRET);
+        keyInfo.clearFileEncryptionInfo();
+      }
+
+      // Set the updateID
+      keyInfo.setUpdateID(trxnLogIndex, isRatisEnabled);
+    }
+  }
+
+  public long getUsedBytes() {
+    long total = 0;
+    for (OmKeyInfo keyInfo : omKeyInfoList) {
+      total += keyInfo.getDataSize() *
+              keyInfo.getReplicationConfig().getRequiredNodes();
+    }
+    return total;
   }
 }

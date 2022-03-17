@@ -135,7 +135,7 @@ public class OmMetadataManagerImpl implements OMMetadataManager {
    * |----------------------------------------------------------------------|
    * | keyTable           | /volumeName/bucketName/keyName->KeyInfo         |
    * |----------------------------------------------------------------------|
-   * | deletedTable       | /volumeName/bucketName/keyName->RepeatedKeyInfo |
+   * | deletedTable       | Long.toHexString(UpdateID) -> RepeatedKeyInfo   |
    * |----------------------------------------------------------------------|
    * | openKey            | /volumeName/bucketName/keyName/id->KeyInfo      |
    * |----------------------------------------------------------------------|

@@ -56,11 +56,10 @@ public class S3MultipartUploadCompleteResponseWithFSO
       @Nonnull String multipartKey,
       @Nonnull String multipartOpenKey,
       @Nonnull OmKeyInfo omKeyInfo,
-      @Nonnull List<OmKeyInfo> unUsedParts,
       @Nonnull BucketLayout bucketLayout,
       @Nonnull OmBucketInfo omBucketInfo,
       RepeatedOmKeyInfo keysToDelete) {
-    super(omResponse, multipartKey, multipartOpenKey, omKeyInfo, unUsedParts,
+    super(omResponse, multipartKey, multipartOpenKey, omKeyInfo,
         bucketLayout, omBucketInfo, keysToDelete);
   }
 

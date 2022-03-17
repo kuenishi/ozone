@@ -462,47 +462,24 @@ public final class OmUtils {
   }
 
   /**
-   * Prepares key info to be moved to deletedTable.
-   * 1. It strips GDPR metadata from key info
-   * 2. For given object key, if the repeatedOmKeyInfo instance is null, it
-   * implies that no entry for the object key exists in deletedTable so we
-   * create a new instance to include this key, else we update the existing
-   * repeatedOmKeyInfo instance.
-   * 3. Set the updateID to the transactionLogIndex.
-   * @param keyInfo args supplied by client
-   * @param repeatedOmKeyInfo key details from deletedTable
-   * @param trxnLogIndex For Multipart keys, this is the transactionLogIndex
-   *                     of the MultipartUploadAbort request which needs to
-   *                     be set as the updateID of the partKeyInfos.
-   *                     For regular Key deletes, this value should be set to
-   *                     the same updateID as is in keyInfo.
-   * @return {@link RepeatedOmKeyInfo}
+   * The key in deletion table is hex-encoded String of UpdateID, which is
+   * updated on processing deletion (or multipart-abort, or overwrite),
+   * assuming UpdateID is already set during the OMKeyRequest. It is
+   * monotonically increasing and guaranteed to be unique across the cluster,
+   * and across the OM fail over. Thus, keys in deletion table are sorted in
+   * the order of actual deletion called by clients. Older deleted keys are
+   * processed earlier by deletion worker, and newer keys are processed later.
+   * The UpdateID also preserves its order, between non-Ratis and
+   * Ratis-enabled OM, due to the first-bit-trick epoch. See HDDS-4315 for
+   * detailed design of ObjectIDs and UpdateIDs.
+   *
+   * @param omKeyInfo
+   * @return Unique and monotonically increasing String for deletion table
    */
-  public static RepeatedOmKeyInfo prepareKeyForDelete(OmKeyInfo keyInfo,
-      RepeatedOmKeyInfo repeatedOmKeyInfo, long trxnLogIndex,
-      boolean isRatisEnabled) {
-    // If this key is in a GDPR enforced bucket, then before moving
-    // KeyInfo to deletedTable, remove the GDPR related metadata and
-    // FileEncryptionInfo from KeyInfo.
-    if (Boolean.valueOf(keyInfo.getMetadata().get(OzoneConsts.GDPR_FLAG))) {
-      keyInfo.getMetadata().remove(OzoneConsts.GDPR_FLAG);
-      keyInfo.getMetadata().remove(OzoneConsts.GDPR_ALGORITHM);
-      keyInfo.getMetadata().remove(OzoneConsts.GDPR_SECRET);
-      keyInfo.clearFileEncryptionInfo();
-    }
-
-    // Set the updateID
-    keyInfo.setUpdateID(trxnLogIndex, isRatisEnabled);
-
-    if (repeatedOmKeyInfo == null) {
-      //The key doesn't exist in deletedTable, so create a new instance.
-      repeatedOmKeyInfo = new RepeatedOmKeyInfo(keyInfo);
-    } else {
-      //The key exists in deletedTable, so update existing instance.
-      repeatedOmKeyInfo.addOmKeyInfo(keyInfo);
-    }
-
-    return repeatedOmKeyInfo;
+  public static String keyForDeleteTable(OmKeyInfo omKeyInfo) {
+    // TODO: add random suffix to avoid implicit overwrite
+    // TODO: update-id based some unique value, as update id can be among multiple delete objects
+    return Long.toHexString(omKeyInfo.getUpdateID());
   }
 
   /**

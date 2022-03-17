@@ -40,15 +40,8 @@ import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.OzoneManagerUtils;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
-import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
-import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.BucketLayout;
-import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
-import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
-import org.apache.hadoop.ozone.om.helpers.OmMultipartKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.*;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
-import org.apache.hadoop.ozone.om.request.file.OMFileRequest;
 import org.apache.hadoop.ozone.om.request.key.OMKeyRequest;
 import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
 import org.apache.hadoop.ozone.om.response.OMClientResponse;
@@ -216,19 +209,16 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
         // creation and key commit, old versions will be just overwritten and
         // not kept. Bucket versioning will be effective from the first key
         // creation after the knob turned on.
-        RepeatedOmKeyInfo oldKeyVersionsToDelete = null;
+        RepeatedOmKeyInfo oldKeyVersionsToDelete =
+            new RepeatedOmKeyInfo(unUsedParts);
         OmKeyInfo keyToDelete =
-            omMetadataManager.getKeyTable(getBucketLayout()).get(dbOzoneKey);
+                omMetadataManager.getKeyTable(getBucketLayout()).get(dbOzoneKey);
         if (keyToDelete != null && !omBucketInfo.getIsVersionEnabled()) {
-          oldKeyVersionsToDelete = getOldVersionsToCleanUp(dbOzoneKey,
-              keyToDelete, omMetadataManager,
-              trxnLogIndex, ozoneManager.isRatisEnabled());
+          oldKeyVersionsToDelete.addOmKeyInfo(keyToDelete);
         }
-        long usedBytesDiff = 0;
-        if (keyToDelete != null) {
-          long numCopy = keyToDelete.getReplicationConfig().getRequiredNodes();
-          usedBytesDiff -= keyToDelete.getDataSize() * numCopy;
-        }
+        oldKeyVersionsToDelete.prepareKeyForDelete(trxnLogIndex, ozoneManager.isRatisEnabled());
+
+        long usedBytesDiff = -oldKeyVersionsToDelete.getUsedBytes();
 
         String dbBucketKey = null;
         if (usedBytesDiff != 0) {
@@ -243,11 +233,6 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
         updateCache(omMetadataManager, dbBucketKey, omBucketInfo, dbOzoneKey,
             dbMultipartOpenKey, multipartKey, omKeyInfo, trxnLogIndex);
 
-        if (oldKeyVersionsToDelete != null) {
-          OMFileRequest.addDeletedTableCacheEntry(omMetadataManager, dbOzoneKey,
-              oldKeyVersionsToDelete, trxnLogIndex);
-        }
-
         omResponse.setCompleteMultiPartUploadResponse(
             MultipartUploadCompleteResponse.newBuilder()
                 .setVolume(requestedVolume)
@@ -257,7 +242,7 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
 
         omClientResponse =
             getOmClientResponse(multipartKey, omResponse, dbMultipartOpenKey,
-                omKeyInfo, unUsedParts, omBucketInfo, oldKeyVersionsToDelete);
+                omKeyInfo, omBucketInfo, oldKeyVersionsToDelete);
 
         result = Result.SUCCESS;
       } else {
@@ -294,11 +279,11 @@ public class S3MultipartUploadCompleteRequest extends OMKeyRequest {
 
   protected OMClientResponse getOmClientResponse(String multipartKey,
       OMResponse.Builder omResponse, String dbMultipartOpenKey,
-      OmKeyInfo omKeyInfo,  List<OmKeyInfo> unUsedParts,
-      OmBucketInfo omBucketInfo, RepeatedOmKeyInfo oldKeyVersionsToDelete) {
+      OmKeyInfo omKeyInfo, OmBucketInfo omBucketInfo,
+      RepeatedOmKeyInfo oldKeyVersionsToDelete) {
 
     return new S3MultipartUploadCompleteResponse(omResponse.build(),
-        multipartKey, dbMultipartOpenKey, omKeyInfo, unUsedParts,
+        multipartKey, dbMultipartOpenKey, omKeyInfo,
         getBucketLayout(), omBucketInfo, oldKeyVersionsToDelete);
   }
 

@@ -21,6 +21,7 @@ package org.apache.hadoop.ozone.om.response.s3.multipart;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
@@ -53,7 +54,6 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
   private String multipartKey;
   private String multipartOpenKey;
   private OmKeyInfo omKeyInfo;
-  private List<OmKeyInfo> partsUnusedList;
   private OmBucketInfo omBucketInfo;
   private RepeatedOmKeyInfo keyVersionsToDelete;
 
@@ -63,12 +63,10 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
       @Nonnull String multipartKey,
       @Nonnull String multipartOpenKey,
       @Nonnull OmKeyInfo omKeyInfo,
-      @Nonnull List<OmKeyInfo> unUsedParts,
       @Nonnull BucketLayout bucketLayout,
       @Nonnull OmBucketInfo omBucketInfo,
       RepeatedOmKeyInfo keyVersionsToDelete) {
     super(omResponse, bucketLayout);
-    this.partsUnusedList = unUsedParts;
     this.multipartKey = multipartKey;
     this.multipartOpenKey = multipartOpenKey;
     this.omKeyInfo = omKeyInfo;
@@ -99,20 +97,15 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
     // 2. Add key to KeyTable
     String ozoneKey = addToKeyTable(omMetadataManager, batchOperation);
 
-    // 3. Delete unused parts
-    if (!partsUnusedList.isEmpty()) {
-      // Add unused parts to deleted key table.
-      if (keyVersionsToDelete == null) {
-        keyVersionsToDelete = new RepeatedOmKeyInfo(partsUnusedList);
-      } else {
-        for (OmKeyInfo unusedParts : partsUnusedList) {
-          keyVersionsToDelete.addOmKeyInfo(unusedParts);
-        }
+    // 3. Delete unused parts and overwritten key
+    if (!keyVersionsToDelete.getOmKeyInfoList().isEmpty()) {
+      List<OmKeyInfo> omKeyInfos = keyVersionsToDelete.getOmKeyInfoList();
+      if (!omKeyInfos.isEmpty()) {
+        // Assuming all keyInfos has the same UpdateID
+        String key = OmUtils.keyForDeleteTable(omKeyInfos.get(0));
+        omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
+                key, keyVersionsToDelete);
       }
-    }
-    if (keyVersionsToDelete != null) {
-      omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-          ozoneKey, keyVersionsToDelete);
     }
 
     // update bucket usedBytes, only when total bucket size has changed
