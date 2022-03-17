@@ -27,11 +27,7 @@ import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.OMMetrics;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
-import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
-import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
-import org.apache.hadoop.ozone.om.helpers.BucketLayout;
-import org.apache.hadoop.ozone.om.helpers.OzoneFSUtils;
+import org.apache.hadoop.ozone.om.helpers.*;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
 import org.apache.hadoop.ozone.om.request.file.OMFileRequest;
 import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
@@ -130,6 +126,8 @@ public class OMKeyDeleteRequestWithFSO extends OMKeyDeleteRequest {
       String ozonePathKey = omMetadataManager.getOzonePathKey(
               omKeyInfo.getParentObjectID(), omKeyInfo.getFileName());
 
+      RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo();
+
       if (keyStatus.isDirectory()) {
         // Check if there are any sub path exists under the user requested path
         if (!recursive && OMFileRequest.hasChildren(omKeyInfo,
@@ -147,6 +145,11 @@ public class OMKeyDeleteRequestWithFSO extends OMKeyDeleteRequest {
         omMetadataManager.getKeyTable(getBucketLayout()).addCacheEntry(
                 new CacheKey<>(ozonePathKey),
                 new CacheValue<>(Optional.absent(), trxnLogIndex));
+
+        // Set the UpdateID to current transactionLogIndex
+        repeatedOmKeyInfo.addOmKeyInfo(omKeyInfo);
+        repeatedOmKeyInfo.prepareKeyForDelete(trxnLogIndex, ozoneManager.isRatisEnabled());
+
       }
 
       omBucketInfo = getBucketInfo(omMetadataManager, volumeName, bucketName);
@@ -163,7 +166,7 @@ public class OMKeyDeleteRequestWithFSO extends OMKeyDeleteRequest {
 
       omClientResponse = new OMKeyDeleteResponseWithFSO(omResponse
           .setDeleteKeyResponse(DeleteKeyResponse.newBuilder()).build(),
-          keyName, omKeyInfo, ozoneManager.isRatisEnabled(),
+          keyName, omKeyInfo, repeatedOmKeyInfo,
           omBucketInfo.copyObject(), keyStatus.isDirectory());
 
       result = Result.SUCCESS;

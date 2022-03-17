@@ -43,20 +43,22 @@ import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.DELETED_TABLE;
 @CleanupTableInfo(cleanupTables = {DELETED_TABLE})
 public abstract class AbstractOMKeyDeleteResponse extends OmKeyResponse {
 
-  private boolean isRatisEnabled;
+  protected RepeatedOmKeyInfo repeatedOmKeyInfo;
 
   public AbstractOMKeyDeleteResponse(
-      @Nonnull OMResponse omResponse, boolean isRatisEnabled) {
+      @Nonnull OMResponse omResponse,
+      @Nonnull RepeatedOmKeyInfo repeatedOmKeyInfo) {
 
     super(omResponse);
-    this.isRatisEnabled = isRatisEnabled;
+    this.repeatedOmKeyInfo = repeatedOmKeyInfo;
   }
 
   public AbstractOMKeyDeleteResponse(@Nonnull OMResponse omResponse,
-      boolean isRatisEnabled, BucketLayout bucketLayout) {
+      @Nonnull RepeatedOmKeyInfo repeatedOmKeyInfo,
+      BucketLayout bucketLayout) {
 
     super(omResponse, bucketLayout);
-    this.isRatisEnabled = isRatisEnabled;
+    this.repeatedOmKeyInfo = repeatedOmKeyInfo;
   }
 
   /**
@@ -68,45 +70,6 @@ public abstract class AbstractOMKeyDeleteResponse extends OmKeyResponse {
     super(omResponse, bucketLayout);
     checkStatusNotOK();
   }
-
-  /**
-   * Adds the operation of deleting the {@code keyName omKeyInfo} pair from
-   * {@code fromTable} to the batch operation {@code batchOperation}. The
-   * batch operation is not committed, so no changes are persisted to disk.
-   * The log transaction index used will be retrieved by calling
-   * {@link OmKeyInfo#getUpdateID} on {@code omKeyInfo}.
-   */
-  protected void addDeletionToBatch(
-      OMMetadataManager omMetadataManager,
-      BatchOperation batchOperation,
-      Table<String, ?> fromTable,
-      String keyName,
-      OmKeyInfo omKeyInfo) throws IOException {
-
-    // For OmResponse with failure, this should do nothing. This method is
-    // not called in failure scenario in OM code.
-    fromTable.deleteWithBatch(batchOperation, keyName);
-
-    // If Key is not empty add this to delete table.
-    if (!isKeyEmpty(omKeyInfo)) {
-      // If a deleted key is put in the table where a key with the same
-      // name already exists, then the old deleted key information would be
-      // lost. To avoid this, first check if a key with same name exists.
-      // deletedTable in OM Metadata stores <KeyName, RepeatedOMKeyInfo>.
-      // The RepeatedOmKeyInfo is the structure that allows us to store a
-      // list of OmKeyInfo that can be tied to same key name. For a keyName
-      // if RepeatedOMKeyInfo structure is null, we create a new instance,
-      // if it is not null, then we simply add to the list and store this
-      // instance in deletedTable.
-      RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo(omKeyInfo);
-      // TODO: update the update id omKeyInfo before here
-      repeatedOmKeyInfo.prepareKeyForDelete(0, isRatisEnabled);
-      String key = OmUtils.keyForDeleteTable(omKeyInfo);
-      omMetadataManager.getDeletedTable().putWithBatch(
-              batchOperation, key, repeatedOmKeyInfo);
-    }
-  }
-
 
   @Override
   public abstract void addToDBBatch(OMMetadataManager omMetadataManager,

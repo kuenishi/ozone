@@ -20,10 +20,12 @@ package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
 import org.apache.hadoop.hdds.utils.db.Table;
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.response.CleanupTableInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 
@@ -41,15 +43,16 @@ import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.FILE_TABLE;
 @CleanupTableInfo(cleanupTables = {FILE_TABLE, DIRECTORY_TABLE,
     DELETED_TABLE, DELETED_DIR_TABLE})
 public class OMKeyDeleteResponseWithFSO extends OMKeyDeleteResponse {
-
+  private OmKeyInfo omKeyInfo;
   private boolean isDeleteDirectory;
   private String keyName;
 
   public OMKeyDeleteResponseWithFSO(@Nonnull OMResponse omResponse,
-      @Nonnull String keyName, @Nonnull OmKeyInfo omKeyInfo,
-      boolean isRatisEnabled, @Nonnull OmBucketInfo omBucketInfo,
-      @Nonnull boolean isDeleteDirectory) {
-    super(omResponse, omKeyInfo, isRatisEnabled, omBucketInfo);
+                                    @Nonnull String keyName, @Nonnull OmKeyInfo omKeyInfo,
+                                    @Nonnull RepeatedOmKeyInfo repeatedOmKeyInfo, @Nonnull OmBucketInfo omBucketInfo,
+                                    @Nonnull boolean isDeleteDirectory) {
+    super(omResponse,repeatedOmKeyInfo, omBucketInfo);
+    this.omKeyInfo = omKeyInfo;
     this.keyName = keyName;
     this.isDeleteDirectory = isDeleteDirectory;
   }
@@ -78,21 +81,18 @@ public class OMKeyDeleteResponseWithFSO extends OMKeyDeleteResponse {
       OmKeyInfo omKeyInfo = getOmKeyInfo();
       // Sets full absolute key name to OmKeyInfo, which is
       // required for moving the sub-files to KeyDeletionService.
+      // TODO: do we really need full path?
       omKeyInfo.setKeyName(keyName);
       omMetadataManager.getDeletedDirTable().putWithBatch(
           batchOperation, ozoneDbKey, omKeyInfo);
     } else {
-      Table<String, OmKeyInfo> keyTable =
-          omMetadataManager.getKeyTable(getBucketLayout());
       OmKeyInfo omKeyInfo = getOmKeyInfo();
-      // Sets full absolute key name to OmKeyInfo, which is
-      // required for moving the sub-files to KeyDeletionService.
-      omKeyInfo.setKeyName(keyName);
+      omMetadataManager.getKeyTable(getBucketLayout()).deleteWithBatch(
+          batchOperation, keyName);
 
-      // Full key is not needed any more, as the key in delete table
-      // is based on UpdateID.
-      addDeletionToBatch(omMetadataManager, batchOperation, keyTable,
-          ozoneDbKey, omKeyInfo);
+      String key = OmUtils.keyForDeleteTable(omKeyInfo);
+      omMetadataManager.getDeletedTable().putWithBatch(
+              batchOperation, key, repeatedOmKeyInfo);
     }
 
     // update bucket usedBytes.

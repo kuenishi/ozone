@@ -108,7 +108,8 @@ public class OMKeyCommitResponse extends OmKeyResponse {
       BatchOperation batchOperation) throws IOException {
     List<OmKeyInfo> omKeyInfos = keyVersionsToDelete.getOmKeyInfoList();
     if (!omKeyInfos.isEmpty()) {
-      // Assuming all keyInfos has the same UpdateID
+      // All keyInfos have the same UpdateID. Getting one from the head
+      // of the list
       String key = OmUtils.keyForDeleteTable(omKeyInfos.get(0));
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
               key, keyVersionsToDelete);

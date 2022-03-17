@@ -19,10 +19,12 @@
 package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.hdds.utils.db.Table;
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.response.CleanupTableInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
     .OMResponse;
@@ -40,14 +42,12 @@ import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.KEY_TABLE;
 @CleanupTableInfo(cleanupTables = {KEY_TABLE, DELETED_TABLE})
 public class OMKeyDeleteResponse extends AbstractOMKeyDeleteResponse {
 
-  private OmKeyInfo omKeyInfo;
   private OmBucketInfo omBucketInfo;
 
   public OMKeyDeleteResponse(@Nonnull OMResponse omResponse,
-      @Nonnull OmKeyInfo omKeyInfo, boolean isRatisEnabled,
+      @Nonnull RepeatedOmKeyInfo repeatedOmKeyInfo,
       @Nonnull OmBucketInfo omBucketInfo) {
-    super(omResponse, isRatisEnabled, omBucketInfo.getBucketLayout());
-    this.omKeyInfo = omKeyInfo;
+    super(omResponse, repeatedOmKeyInfo, omBucketInfo.getBucketLayout());
     this.omBucketInfo = omBucketInfo;
   }
 
@@ -64,14 +64,20 @@ public class OMKeyDeleteResponse extends AbstractOMKeyDeleteResponse {
   public void addToDBBatch(OMMetadataManager omMetadataManager,
       BatchOperation batchOperation) throws IOException {
 
+    // We can safely assume there is only one key in the repeatedOmKeyInfo
+    OmKeyInfo omKeyInfo = repeatedOmKeyInfo.getOmKeyInfoList().get(0);
+
     // For OmResponse with failure, this should do nothing. This method is
     // not called in failure scenario in OM code.
     String ozoneKey = omMetadataManager.getOzoneKey(omKeyInfo.getVolumeName(),
         omKeyInfo.getBucketName(), omKeyInfo.getKeyName());
-    Table<String, OmKeyInfo> keyTable =
-        omMetadataManager.getKeyTable(getBucketLayout());
-    addDeletionToBatch(omMetadataManager, batchOperation, keyTable, ozoneKey,
-        omKeyInfo);
+
+    omMetadataManager.getKeyTable(getBucketLayout()).deleteWithBatch(
+        batchOperation, ozoneKey);
+
+    String key = OmUtils.keyForDeleteTable(omKeyInfo);
+    omMetadataManager.getDeletedTable().putWithBatch(
+        batchOperation, key, repeatedOmKeyInfo);
 
     // update bucket usedBytes.
     omMetadataManager.getBucketTable().putWithBatch(batchOperation,
@@ -80,7 +86,7 @@ public class OMKeyDeleteResponse extends AbstractOMKeyDeleteResponse {
   }
 
   protected OmKeyInfo getOmKeyInfo() {
-    return omKeyInfo;
+    return repeatedOmKeyInfo.getOmKeyInfoList().get(0);
   }
 
   protected OmBucketInfo getOmBucketInfo() {

@@ -25,6 +25,7 @@ import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
+import org.apache.hadoop.ozone.om.request.file.OMFileRequest;
 import org.apache.hadoop.ozone.om.response.OMClientResponse;
 import org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadCompleteResponse;
 import org.apache.hadoop.ozone.om.response.s3.multipart.S3MultipartUploadCompleteResponseWithFSO;
@@ -36,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 
 import static org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes.NOT_A_FILE;
 import static org.apache.hadoop.ozone.om.request.file.OMFileRequest.OMDirectoryResult.DIRECTORY_EXISTS;
@@ -150,8 +150,7 @@ public class S3MultipartUploadCompleteRequestWithFSO
   protected OMClientResponse getOmClientResponse(String multipartKey,
       OzoneManagerProtocolProtos.OMResponse.Builder omResponse,
       String dbMultipartOpenKey, OmKeyInfo omKeyInfo,
-      OmBucketInfo omBucketInfo, OmKeyInfo keyToDelete,
-      RepeatedOmKeyInfo oldKeyVersionsToDelete) {
+      OmBucketInfo omBucketInfo, RepeatedOmKeyInfo oldKeyVersionsToDelete) {
 
     return new S3MultipartUploadCompleteResponseWithFSO(omResponse.build(),
         multipartKey, dbMultipartOpenKey, omKeyInfo,

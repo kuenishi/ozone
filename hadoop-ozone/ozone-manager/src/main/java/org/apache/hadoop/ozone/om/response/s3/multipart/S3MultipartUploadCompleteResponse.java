@@ -134,9 +134,4 @@ public class S3MultipartUploadCompleteResponse extends OmKeyResponse {
   protected OmKeyInfo getOmKeyInfo() {
     return omKeyInfo;
   }
-
-  protected List<OmKeyInfo> getPartsUnusedList() {
-    return partsUnusedList;
-  }
-
 }

@@ -25,6 +25,7 @@ import java.util.Map;
 import com.google.common.base.Optional;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
+import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
 import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
@@ -147,9 +148,9 @@ public class OMKeyDeleteRequest extends OMKeyRequest {
       if (omKeyInfo == null) {
         throw new OMException("Key not found", KEY_NOT_FOUND);
       }
-
+      RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo(omKeyInfo);
       // Set the UpdateID to current transactionLogIndex
-      omKeyInfo.setUpdateID(trxnLogIndex, ozoneManager.isRatisEnabled());
+      repeatedOmKeyInfo.prepareKeyForDelete(trxnLogIndex, ozoneManager.isRatisEnabled());
 
       // Update table cache.
       omMetadataManager.getKeyTable(getBucketLayout()).addCacheEntry(
@@ -170,8 +171,7 @@ public class OMKeyDeleteRequest extends OMKeyRequest {
 
       omClientResponse = new OMKeyDeleteResponse(
           omResponse.setDeleteKeyResponse(DeleteKeyResponse.newBuilder())
-              .build(), omKeyInfo, ozoneManager.isRatisEnabled(),
-          omBucketInfo.copyObject());
+              .build(), repeatedOmKeyInfo, omBucketInfo.copyObject());
 
       result = Result.SUCCESS;
     } catch (IOException ex) {
