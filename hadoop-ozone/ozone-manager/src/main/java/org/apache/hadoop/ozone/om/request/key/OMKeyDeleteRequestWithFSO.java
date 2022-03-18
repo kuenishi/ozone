@@ -126,8 +126,6 @@ public class OMKeyDeleteRequestWithFSO extends OMKeyDeleteRequest {
       String ozonePathKey = omMetadataManager.getOzonePathKey(
               omKeyInfo.getParentObjectID(), omKeyInfo.getFileName());
 
-      RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo();
-
       if (keyStatus.isDirectory()) {
         // Check if there are any sub path exists under the user requested path
         if (!recursive && OMFileRequest.hasChildren(omKeyInfo,
@@ -145,11 +143,6 @@ public class OMKeyDeleteRequestWithFSO extends OMKeyDeleteRequest {
         omMetadataManager.getKeyTable(getBucketLayout()).addCacheEntry(
                 new CacheKey<>(ozonePathKey),
                 new CacheValue<>(Optional.absent(), trxnLogIndex));
-
-        // Set the UpdateID to current transactionLogIndex
-        repeatedOmKeyInfo.addOmKeyInfo(omKeyInfo);
-        repeatedOmKeyInfo.prepareKeyForDelete(trxnLogIndex, ozoneManager.isRatisEnabled());
-
       }
 
       omBucketInfo = getBucketInfo(omMetadataManager, volumeName, bucketName);
@@ -166,8 +159,8 @@ public class OMKeyDeleteRequestWithFSO extends OMKeyDeleteRequest {
 
       omClientResponse = new OMKeyDeleteResponseWithFSO(omResponse
           .setDeleteKeyResponse(DeleteKeyResponse.newBuilder()).build(),
-          keyName, omKeyInfo, repeatedOmKeyInfo,
-          omBucketInfo.copyObject(), keyStatus.isDirectory());
+          keyName, omKeyInfo, omBucketInfo.copyObject(),
+          keyStatus.isDirectory());
 
       result = Result.SUCCESS;
     } catch (IOException ex) {

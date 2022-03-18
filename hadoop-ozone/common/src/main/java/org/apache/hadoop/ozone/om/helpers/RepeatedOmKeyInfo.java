@@ -124,6 +124,18 @@ public class RepeatedOmKeyInfo {
    *                     the same updateID as is in keyInfo.
    */
   public void prepareKeyForDelete(long trxnLogIndex, boolean isRatisEnabled) {
+    clearGDPRdata();
+    setUpdateIDs(trxnLogIndex, isRatisEnabled);
+  }
+
+  public void setUpdateIDs(long trxnLogIndex, boolean isRatisEnabled) {
+    for (OmKeyInfo keyInfo : omKeyInfoList) {
+      // Set the updateID
+      keyInfo.setUpdateID(trxnLogIndex, isRatisEnabled);
+    }
+  }
+
+  public void clearGDPRdata(){
     // If this key is in a GDPR enforced bucket, then before moving
     // KeyInfo to deletedTable, remove the GDPR related metadata and
     // FileEncryptionInfo from KeyInfo.
@@ -134,9 +146,6 @@ public class RepeatedOmKeyInfo {
         keyInfo.getMetadata().remove(OzoneConsts.GDPR_SECRET);
         keyInfo.clearFileEncryptionInfo();
       }
-
-      // Set the updateID
-      keyInfo.setUpdateID(trxnLogIndex, isRatisEnabled);
     }
   }
 

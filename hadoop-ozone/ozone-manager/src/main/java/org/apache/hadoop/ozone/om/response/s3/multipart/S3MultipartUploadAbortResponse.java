@@ -87,7 +87,10 @@ public class S3MultipartUploadAbortResponse extends OmKeyResponse {
     omMetadataManager.getMultipartInfoTable().deleteWithBatch(batchOperation,
         multipartKey);
 
-    // Move all the parts to delete table
+    RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo();
+    String deleteKey = null;
+
+    // Gather all the parts to move to delete table
     TreeMap<Integer, PartKeyInfo > partKeyInfoMap =
         omMultipartKeyInfo.getPartKeyInfoMap();
     for (Map.Entry<Integer, PartKeyInfo > partKeyInfoEntry :
@@ -96,19 +99,20 @@ public class S3MultipartUploadAbortResponse extends OmKeyResponse {
       OmKeyInfo currentKeyPartInfo =
           OmKeyInfo.getFromProtobuf(partKeyInfo.getPartKeyInfo());
 
-      RepeatedOmKeyInfo repeatedOmKeyInfo =
-          omMetadataManager.getDeletedTable().get(partKeyInfo.getPartName());
+      repeatedOmKeyInfo.addOmKeyInfo(currentKeyPartInfo);
+      deleteKey = OmUtils.keyForDeleteTable(keyInfo);
+    }
 
-      repeatedOmKeyInfo = OmUtils.prepareKeyForDelete(currentKeyPartInfo,
-          repeatedOmKeyInfo, omMultipartKeyInfo.getUpdateID(), isRatisEnabled);
-
+    // Put them into delete table
+    if (!repeatedOmKeyInfo.getOmKeyInfoList().isEmpty()) {
+      assert deleteKey != null;
+      repeatedOmKeyInfo.clearGDPRdata();
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-          partKeyInfo.getPartName(), repeatedOmKeyInfo);
-
+              deleteKey, repeatedOmKeyInfo);
       // update bucket usedBytes.
       omMetadataManager.getBucketTable().putWithBatch(batchOperation,
-          omMetadataManager.getBucketKey(omBucketInfo.getVolumeName(),
-              omBucketInfo.getBucketName()), omBucketInfo);
+              omMetadataManager.getBucketKey(omBucketInfo.getVolumeName(),
+                      omBucketInfo.getBucketName()), omBucketInfo);
     }
   }
 }

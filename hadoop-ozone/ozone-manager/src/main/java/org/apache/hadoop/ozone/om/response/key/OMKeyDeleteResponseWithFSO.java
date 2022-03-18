@@ -49,9 +49,9 @@ public class OMKeyDeleteResponseWithFSO extends OMKeyDeleteResponse {
 
   public OMKeyDeleteResponseWithFSO(@Nonnull OMResponse omResponse,
                                     @Nonnull String keyName, @Nonnull OmKeyInfo omKeyInfo,
-                                    @Nonnull RepeatedOmKeyInfo repeatedOmKeyInfo, @Nonnull OmBucketInfo omBucketInfo,
+                                    @Nonnull OmBucketInfo omBucketInfo,
                                     @Nonnull boolean isDeleteDirectory) {
-    super(omResponse,repeatedOmKeyInfo, omBucketInfo);
+    super(omResponse, new RepeatedOmKeyInfo(omKeyInfo), omBucketInfo);
     this.omKeyInfo = omKeyInfo;
     this.keyName = keyName;
     this.isDeleteDirectory = isDeleteDirectory;
@@ -81,7 +81,6 @@ public class OMKeyDeleteResponseWithFSO extends OMKeyDeleteResponse {
       OmKeyInfo omKeyInfo = getOmKeyInfo();
       // Sets full absolute key name to OmKeyInfo, which is
       // required for moving the sub-files to KeyDeletionService.
-      // TODO: do we really need full path?
       omKeyInfo.setKeyName(keyName);
       omMetadataManager.getDeletedDirTable().putWithBatch(
           batchOperation, ozoneDbKey, omKeyInfo);
@@ -90,6 +89,8 @@ public class OMKeyDeleteResponseWithFSO extends OMKeyDeleteResponse {
       omMetadataManager.getKeyTable(getBucketLayout()).deleteWithBatch(
           batchOperation, keyName);
 
+      // The omKeyInfo already has its UpdateID set in the request, so there
+      // is no need to call repeatedOmKeyInfo.prepareKeyForDelete(...).
       String key = OmUtils.keyForDeleteTable(omKeyInfo);
       omMetadataManager.getDeletedTable().putWithBatch(
               batchOperation, key, repeatedOmKeyInfo);
