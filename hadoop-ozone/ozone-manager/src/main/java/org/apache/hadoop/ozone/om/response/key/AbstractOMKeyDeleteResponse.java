@@ -31,6 +31,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
 
 import java.io.IOException;
+import java.util.List;
 import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
 
@@ -75,6 +76,36 @@ public abstract class AbstractOMKeyDeleteResponse extends OmKeyResponse {
   public abstract void addToDBBatch(OMMetadataManager omMetadataManager,
         BatchOperation batchOperation) throws IOException;
 
+  /**
+   * Adds the operation of deleting the {@code keyName omKeyInfo} pair from
+   * {@code fromTable} to the batch operation {@code batchOperation}. The
+   * batch operation is not committed, so no changes are persisted to disk.
+   * The log transaction index used will be retrieved by calling
+   * {@link OmKeyInfo#getUpdateID} on {@code omKeyInfo}.
+   */
+  protected void addDeletionToBatch(
+          OMMetadataManager omMetadataManager,
+          BatchOperation batchOperation,
+          Table<String, ?> fromTable,
+          List<OmKeyInfo> omKeyInfoList) throws IOException {
+
+    for (OmKeyInfo omKeyInfo : omKeyInfoList) {
+      String volumeName = omKeyInfo.getVolumeName();
+      String bucketName = omKeyInfo.getBucketName();
+      String keyName = omKeyInfo.getKeyName();
+
+      String deleteKey = omMetadataManager.getOzoneKey(volumeName, bucketName,
+              keyName);
+
+      fromTable.deleteWithBatch(batchOperation, deleteKey);
+    }
+
+    repeatedOmKeyInfo.clearGDPRdata();
+    OmKeyInfo omKeyInfo = omKeyInfoList.get(0);
+    String key = OmUtils.keyForDeleteTable(omKeyInfo);
+    omMetadataManager.getDeletedTable().putWithBatch(
+            batchOperation, key, repeatedOmKeyInfo);
+  }
   /**
    * Check if the key is empty or not. Key will be empty if it does not have
    * blocks.

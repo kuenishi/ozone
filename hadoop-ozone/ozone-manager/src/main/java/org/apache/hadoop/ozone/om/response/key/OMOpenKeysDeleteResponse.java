@@ -19,9 +19,11 @@ package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
 import org.apache.hadoop.hdds.utils.db.Table;
+import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.response.CleanupTableInfo;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 
@@ -39,14 +41,13 @@ import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.OPEN_KEY_TABLE;
 @CleanupTableInfo(cleanupTables = {OPEN_KEY_TABLE, DELETED_TABLE})
 public class OMOpenKeysDeleteResponse extends AbstractOMKeyDeleteResponse {
 
-  private Map<String, OmKeyInfo> keysToDelete;
+  private RepeatedOmKeyInfo repeatedOmKeyInfo;
 
   public OMOpenKeysDeleteResponse(
       @Nonnull OzoneManagerProtocolProtos.OMResponse omResponse,
-      @Nonnull Map<String, OmKeyInfo> keysToDelete, boolean isRatisEnabled) {
+      @Nonnull RepeatedOmKeyInfo repeatedOmKeyInfo) {
 
-    super(omResponse, isRatisEnabled);
-    this.keysToDelete = keysToDelete;
+    super(omResponse, repeatedOmKeyInfo);
   }
 
   /**
@@ -64,12 +65,13 @@ public class OMOpenKeysDeleteResponse extends AbstractOMKeyDeleteResponse {
   public void addToDBBatch(OMMetadataManager omMetadataManager,
       BatchOperation batchOperation) throws IOException {
 
-    Table<String, OmKeyInfo> openKeyTable =
-        omMetadataManager.getOpenKeyTable(getBucketLayout());
-
-    for (Map.Entry<String, OmKeyInfo> keyInfoPair: keysToDelete.entrySet()) {
-      addDeletionToBatch(omMetadataManager, batchOperation, openKeyTable,
-          keyInfoPair.getKey(), keyInfoPair.getValue());
+    if (repeatedOmKeyInfo.getOmKeyInfoList().isEmpty()) {
+      return;
     }
+
+    // UpdateIDs are already set in the OMOpenKeysDeleteRequest
+    addDeletionToBatch(omMetadataManager, batchOperation,
+            omMetadataManager.getOpenKeyTable(getBucketLayout()),
+            repeatedOmKeyInfo.getOmKeyInfoList());
   }
 }

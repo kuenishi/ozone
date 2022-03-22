@@ -67,13 +67,9 @@ public class OMKeyDeleteResponse extends AbstractOMKeyDeleteResponse {
     // We can safely assume there is only one key in the repeatedOmKeyInfo
     OmKeyInfo omKeyInfo = repeatedOmKeyInfo.getOmKeyInfoList().get(0);
 
-    // For OmResponse with failure, this should do nothing. This method is
-    // not called in failure scenario in OM code.
-    String ozoneKey = omMetadataManager.getOzoneKey(omKeyInfo.getVolumeName(),
-        omKeyInfo.getBucketName(), omKeyInfo.getKeyName());
-
-    omMetadataManager.getKeyTable(getBucketLayout()).deleteWithBatch(
-        batchOperation, ozoneKey);
+    addDeletionToBatch(omMetadataManager, batchOperation,
+            omMetadataManager.getKeyTable(getBucketLayout()),
+            repeatedOmKeyInfo.getOmKeyInfoList());
 
     String key = OmUtils.keyForDeleteTable(omKeyInfo);
     omMetadataManager.getDeletedTable().putWithBatch(
