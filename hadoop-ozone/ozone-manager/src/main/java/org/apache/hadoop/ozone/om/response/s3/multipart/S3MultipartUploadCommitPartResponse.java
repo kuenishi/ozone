@@ -59,6 +59,8 @@ public class S3MultipartUploadCommitPartResponse extends OmKeyResponse {
   private OmKeyInfo openPartKeyInfoToBeDeleted;
   private boolean isRatisEnabled;
   private OmBucketInfo omBucketInfo;
+  private RepeatedOmKeyInfo repeatedOmKeyInfo;
+  private String deleteKey;
 
   /**
    * Regular response.
@@ -90,6 +92,8 @@ public class S3MultipartUploadCommitPartResponse extends OmKeyResponse {
     this.openPartKeyInfoToBeDeleted = openPartKeyInfoToBeDeleted;
     this.isRatisEnabled = isRatisEnabled;
     this.omBucketInfo = omBucketInfo;
+    this.repeatedOmKeyInfo = new RepeatedOmKeyInfo();
+    this.deleteKey = null;
   }
 
   @Override
@@ -97,24 +101,22 @@ public class S3MultipartUploadCommitPartResponse extends OmKeyResponse {
       BatchOperation batchOperation) throws IOException {
 
     if (getOMResponse().getStatus() == NO_SUCH_MULTIPART_UPLOAD_ERROR) {
-      // Means by the time we try to commit part, some one has aborted this
+      // Means by the time we try to commit part, someone has aborted this
       // multipart upload. So, delete this part information.
 
-      RepeatedOmKeyInfo repeatedOmKeyInfo =
-          omMetadataManager.getDeletedTable().get(openKey);
 
-      repeatedOmKeyInfo =
-          OmUtils.prepareKeyForDelete(openPartKeyInfoToBeDeleted,
-          repeatedOmKeyInfo, openPartKeyInfoToBeDeleted.getUpdateID(),
+      repeatedOmKeyInfo.addOmKeyInfo(openPartKeyInfoToBeDeleted);
+      repeatedOmKeyInfo.prepareKeyForDelete(openPartKeyInfoToBeDeleted.getUpdateID(),
               isRatisEnabled);
-
+      deleteKey = OmUtils.keyForDeleteTable(openPartKeyInfoToBeDeleted);
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-          openKey, repeatedOmKeyInfo);
+              deleteKey, repeatedOmKeyInfo);
     }
 
     if (getOMResponse().getStatus() == OK) {
       addToDBBatch(omMetadataManager, batchOperation);
     }
+
   }
 
   @Override
@@ -133,16 +135,12 @@ public class S3MultipartUploadCommitPartResponse extends OmKeyResponse {
     if (oldPartKeyInfo != null) {
       OmKeyInfo partKeyToBeDeleted =
           OmKeyInfo.getFromProtobuf(oldPartKeyInfo.getPartKeyInfo());
-
-      RepeatedOmKeyInfo repeatedOmKeyInfo =
-          omMetadataManager.getDeletedTable()
-              .get(oldPartKeyInfo.getPartName());
-
-      repeatedOmKeyInfo = OmUtils.prepareKeyForDelete(partKeyToBeDeleted,
-          repeatedOmKeyInfo, omMultipartKeyInfo.getUpdateID(), isRatisEnabled);
-
+      repeatedOmKeyInfo.addOmKeyInfo(partKeyToBeDeleted);
+      repeatedOmKeyInfo.prepareKeyForDelete(partKeyToBeDeleted.getUpdateID(),
+              isRatisEnabled);
+      deleteKey = OmUtils.keyForDeleteTable(partKeyToBeDeleted);
       omMetadataManager.getDeletedTable().putWithBatch(batchOperation,
-          oldPartKeyInfo.getPartName(), repeatedOmKeyInfo);
+          deleteKey, repeatedOmKeyInfo);
     }
 
     omMetadataManager.getMultipartInfoTable().putWithBatch(batchOperation,
