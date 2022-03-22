@@ -73,25 +73,25 @@ public class OMKeyDeleteResponseWithFSO extends OMKeyDeleteResponse {
     // For OmResponse with failure, this should do nothing. This method is
     // not called in failure scenario in OM code.
     String ozoneDbKey = omMetadataManager.getOzonePathKey(
-            getOmKeyInfo().getParentObjectID(), getOmKeyInfo().getFileName());
+        omKeyInfo.getParentObjectID(), omKeyInfo.getFileName());
 
     if (isDeleteDirectory) {
       omMetadataManager.getDirectoryTable().deleteWithBatch(batchOperation,
               ozoneDbKey);
-      OmKeyInfo omKeyInfo = getOmKeyInfo();
       // Sets full absolute key name to OmKeyInfo, which is
       // required for moving the sub-files to KeyDeletionService.
       omKeyInfo.setKeyName(keyName);
       omMetadataManager.getDeletedDirTable().putWithBatch(
           batchOperation, ozoneDbKey, omKeyInfo);
     } else {
-      OmKeyInfo omKeyInfo = getOmKeyInfo();
       omMetadataManager.getKeyTable(getBucketLayout()).deleteWithBatch(
           batchOperation, keyName);
 
       // The omKeyInfo already has its UpdateID set in the request, so there
-      // is no need to call repeatedOmKeyInfo.prepareKeyForDelete(...).
+      // is no need to call repeatedOmKeyInfo.prepareKeyForDelete(...). Just
+      // clearing GDPR metadata is enough.
       String key = OmUtils.keyForDeleteTable(omKeyInfo);
+      repeatedOmKeyInfo.clearGDPRdata();
       omMetadataManager.getDeletedTable().putWithBatch(
               batchOperation, key, repeatedOmKeyInfo);
     }

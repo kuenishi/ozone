@@ -29,6 +29,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -47,10 +48,21 @@ public class OMPathsPurgeRequestWithFSO extends OMKeyRequest {
         getOmRequest().getPurgePathsRequest();
 
     List<String> deletedDirsList = purgePathsRequest.getDeletedDirsList();
-    List<OzoneManagerProtocolProtos.KeyInfo> deletedSubFilesList =
+
+    List<OmKeyInfo> deletedSubFilesList = new ArrayList<>();
         purgePathsRequest.getDeletedSubFilesList();
-    List<OzoneManagerProtocolProtos.KeyInfo> markDeletedSubDirsList =
-        purgePathsRequest.getMarkDeletedSubDirsList();
+    for (OzoneManagerProtocolProtos.KeyInfo keyInfo : purgePathsRequest.getDeletedSubFilesList()) {
+      OmKeyInfo omKeyInfo = OmKeyInfo.getFromProtobuf(keyInfo);
+      omKeyInfo.setUpdateID(trxnLogIndex, ozoneManager.isRatisEnabled());
+      deletedSubFilesList.add(omKeyInfo);
+    }
+
+    List<OmKeyInfo> markDeletedSubDirsList = new ArrayList<>();
+    for (OzoneManagerProtocolProtos.KeyInfo keyInfo : purgePathsRequest.getMarkDeletedSubDirsList()) {
+      OmKeyInfo omKeyInfo = OmKeyInfo.getFromProtobuf(keyInfo);
+      omKeyInfo.setUpdateID(trxnLogIndex, ozoneManager.isRatisEnabled());
+      markDeletedSubDirsList.add(omKeyInfo);
+    }
 
     OMResponse.Builder omResponse = OmResponseUtil.getOMResponseBuilder(
         getOmRequest());

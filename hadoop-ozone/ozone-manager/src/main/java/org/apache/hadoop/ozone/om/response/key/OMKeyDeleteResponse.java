@@ -85,10 +85,6 @@ public class OMKeyDeleteResponse extends AbstractOMKeyDeleteResponse {
             omBucketInfo.getBucketName()), omBucketInfo);
   }
 
-  protected OmKeyInfo getOmKeyInfo() {
-    return repeatedOmKeyInfo.getOmKeyInfoList().get(0);
-  }
-
   protected OmBucketInfo getOmBucketInfo() {
     return omBucketInfo;
   }

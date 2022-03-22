@@ -49,15 +49,15 @@ public class OMPathsPurgeResponseWithFSO extends OmKeyResponse {
   private static final Logger LOG =
       LoggerFactory.getLogger(OMPathsPurgeResponseWithFSO.class);
 
-  private List<OzoneManagerProtocolProtos.KeyInfo> markDeletedDirList;
+  private List<OmKeyInfo> markDeletedDirList;
   private List<String> dirList;
-  private List<OzoneManagerProtocolProtos.KeyInfo> fileList;
+  private List<OmKeyInfo> fileList;
   private boolean isRatisEnabled;
 
 
   public OMPathsPurgeResponseWithFSO(@Nonnull OMResponse omResponse,
-      @Nonnull List<OzoneManagerProtocolProtos.KeyInfo> markDeletedDirs,
-      @Nonnull List<OzoneManagerProtocolProtos.KeyInfo> files,
+      @Nonnull List<OmKeyInfo> markDeletedDirs,
+      @Nonnull List<OmKeyInfo> files,
       @Nonnull List<String> dirs, boolean isRatisEnabled,
       @Nonnull BucketLayout bucketLayout) {
     super(omResponse, bucketLayout);
@@ -72,19 +72,18 @@ public class OMPathsPurgeResponseWithFSO extends OmKeyResponse {
       BatchOperation batchOperation) throws IOException {
 
     // Add all sub-directories to deleted directory table.
-    for (OzoneManagerProtocolProtos.KeyInfo key : markDeletedDirList) {
-      OmKeyInfo keyInfo = OmKeyInfo.getFromProtobuf(key);
+    for (OmKeyInfo omKeyInfo : markDeletedDirList) {
       String ozoneDbKey = omMetadataManager.getOzonePathKey(
-          keyInfo.getParentObjectID(), keyInfo.getFileName());
+          omKeyInfo.getParentObjectID(), omKeyInfo.getFileName());
       omMetadataManager.getDeletedDirTable().putWithBatch(batchOperation,
-          ozoneDbKey, keyInfo);
+          ozoneDbKey, omKeyInfo);
 
       omMetadataManager.getDirectoryTable().deleteWithBatch(batchOperation,
           ozoneDbKey);
 
       if (LOG.isDebugEnabled()) {
         LOG.debug("markDeletedDirList KeyName: {}, DBKey: {}",
-            keyInfo.getKeyName(), ozoneDbKey);
+            omKeyInfo.getKeyName(), ozoneDbKey);
       }
     }
 
@@ -98,22 +97,19 @@ public class OMPathsPurgeResponseWithFSO extends OmKeyResponse {
       }
     }
 
-    RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo();
+    RepeatedOmKeyInfo repeatedOmKeyInfo = new RepeatedOmKeyInfo(fileList);
     String deleteKey = null;
-    for (OzoneManagerProtocolProtos.KeyInfo key : fileList) {
-      OmKeyInfo keyInfo = OmKeyInfo.getFromProtobuf(key);
+    for (OmKeyInfo omKeyInfo : fileList) {
       String ozoneDbKey = omMetadataManager.getOzonePathKey(
-              keyInfo.getParentObjectID(), keyInfo.getFileName());
+              omKeyInfo.getParentObjectID(), omKeyInfo.getFileName());
       omMetadataManager.getKeyTable(getBucketLayout())
               .deleteWithBatch(batchOperation, ozoneDbKey);
 
       if (LOG.isDebugEnabled()) {
         LOG.info("Move keyName:{} to DeletedTable DBKey: {}",
-                keyInfo.getKeyName(), ozoneDbKey);
+                omKeyInfo.getKeyName(), ozoneDbKey);
       }
-
-      repeatedOmKeyInfo.addOmKeyInfo(keyInfo);
-      deleteKey = OmUtils.keyForDeleteTable(keyInfo);
+      deleteKey = OmUtils.keyForDeleteTable(omKeyInfo);
     }
 
     if (!repeatedOmKeyInfo.getOmKeyInfoList().isEmpty()) {
