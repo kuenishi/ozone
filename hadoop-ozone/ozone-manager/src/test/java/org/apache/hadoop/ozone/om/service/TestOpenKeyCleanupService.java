@@ -158,7 +158,7 @@ public class TestOpenKeyCleanupService {
     // wait for requests to complete
     Thread.sleep(SERVICE_INTERVAL.toMillis());
 
-    assertTrue(openKeyCleanupService.getSubmittedOpenKeyCount() >=
+    assertTrue( openKeyCleanupService.getSubmittedOpenKeyCount() >=
         oldkeyCount + keyCount);
     assertTrue(keyManager.getExpiredOpenKeys(EXPIRE_THRESHOLD,
         1, BucketLayout.DEFAULT).isEmpty());
