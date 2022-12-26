@@ -87,10 +87,10 @@ public class OMKeysDeleteResponseWithFSO extends OMKeysDeleteResponse {
   @Override
   protected String getKeyToDelete(OMMetadataManager omMetadataManager,
          OmKeyInfo omKeyInfo1) throws IOException {
-         String ozoneDBKey = omMetadataManager.getOzonePathKey(
-                 volumeId, getOmBucketInfo().getObjectID(),
-                 omKeyInfo1.getParentObjectID(), omKeyInfo1.getFileName());
-         return ozoneDBKey;
+    String ozoneDBKey = omMetadataManager.getOzonePathKey(
+            volumeId, getOmBucketInfo().getObjectID(),
+            omKeyInfo1.getParentObjectID(), omKeyInfo1.getFileName());
+    return ozoneDBKey;
   }
 
   @Override

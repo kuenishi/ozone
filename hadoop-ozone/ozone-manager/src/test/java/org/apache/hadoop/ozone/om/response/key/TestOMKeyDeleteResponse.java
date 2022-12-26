@@ -118,7 +118,8 @@ public class TestOMKeyDeleteResponse extends TestOMKeyResponse {
             .setCmdType(OzoneManagerProtocolProtos.Type.DeleteKey)
             .build();
 
-    String deletePrefix = OmUtils.preifxForDeleteTable(Time.now(), trxnLogIndex);
+    String deletePrefix = OmUtils.preifxForDeleteTable(Time.now(),
+            trxnLogIndex);
     OMKeyDeleteResponse omKeyDeleteResponse = getOmKeyDeleteResponse(omKeyInfo,
             omResponse, deletePrefix);
 

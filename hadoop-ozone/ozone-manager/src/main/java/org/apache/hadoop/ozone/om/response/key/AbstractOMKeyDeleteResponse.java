@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
 
@@ -85,7 +84,8 @@ public abstract class AbstractOMKeyDeleteResponse extends OmKeyResponse {
    * depending on the bucket layout.
    */
   protected abstract String getKeyToDelete(
-      OMMetadataManager omMetadataManager, OmKeyInfo omKeyInfo) throws IOException;
+      OMMetadataManager omMetadataManager,
+      OmKeyInfo omKeyInfo) throws IOException;
 
   /**
    * Adds the operation of deleting the {@code keyName omKeyInfo} pair from

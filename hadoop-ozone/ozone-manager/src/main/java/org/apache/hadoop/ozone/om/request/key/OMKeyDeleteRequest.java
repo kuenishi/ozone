@@ -173,11 +173,11 @@ public class OMKeyDeleteRequest extends OMKeyRequest {
       // be used by DeleteKeyService only, not used for any client response
       // validation, so we don't need to add to cache.
       // TODO: Revisit if we need it later.
-      String delKey = OmUtils.preifxForDeleteTable(keyArgs.getModificationTime(),
-          trxnLogIndex);
+      String deletePrefix = OmUtils.preifxForDeleteTable(
+              keyArgs.getModificationTime(), trxnLogIndex);
       omClientResponse = new OMKeyDeleteResponse(
           omResponse.setDeleteKeyResponse(DeleteKeyResponse.newBuilder())
-              .build(), delKey, Arrays.asList(omKeyInfo),
+              .build(), deletePrefix, Arrays.asList(omKeyInfo),
           omBucketInfo.copyObject());
 
       result = Result.SUCCESS;
