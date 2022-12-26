@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
 import org.apache.hadoop.conf.Configuration;
@@ -94,6 +95,7 @@ import org.apache.hadoop.hdds.utils.db.cache.CacheValue;
  * Helper class to test OMClientRequest classes.
  */
 public final class OMRequestTestUtils {
+  private static AtomicLong objectCounter = new AtomicLong(Time.now());
 
   private OMRequestTestUtils() {
     //Do nothing
@@ -195,8 +197,9 @@ public final class OMRequestTestUtils {
       HddsProtos.ReplicationType replicationType,
       HddsProtos.ReplicationFactor replicationFactor,
       OMMetadataManager omMetadataManager) throws Exception {
+    long index = objectCounter.getAndIncrement();
     addKeyToTable(openKeyTable, false, volumeName, bucketName, keyName,
-        clientID, replicationType, replicationFactor, 0L, omMetadataManager);
+        clientID, replicationType, replicationFactor, index, omMetadataManager);
   }
 
   /**
@@ -356,7 +359,7 @@ public final class OMRequestTestUtils {
       String keyName, HddsProtos.ReplicationType replicationType,
       HddsProtos.ReplicationFactor replicationFactor) {
     return createOmKeyInfo(volumeName, bucketName, keyName, replicationType,
-        replicationFactor, 0L);
+        replicationFactor, objectCounter.getAndIncrement());
   }
 
   /**
