@@ -24,6 +24,7 @@ import java.util.Map;
 
 import com.google.common.base.Optional;
 import org.apache.hadoop.ozone.OmUtils;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
@@ -173,11 +174,11 @@ public class OMKeyDeleteRequest extends OMKeyRequest {
       // be used by DeleteKeyService only, not used for any client response
       // validation, so we don't need to add to cache.
       // TODO: Revisit if we need it later.
-      String deletePrefix = OmUtils.preifxForDeleteTable(
+      DeleteTablePrefix prefix = new DeleteTablePrefix(
               keyArgs.getModificationTime(), trxnLogIndex);
       omClientResponse = new OMKeyDeleteResponse(
           omResponse.setDeleteKeyResponse(DeleteKeyResponse.newBuilder())
-              .build(), deletePrefix, Arrays.asList(omKeyInfo),
+              .build(), prefix, Arrays.asList(omKeyInfo),
           omBucketInfo.copyObject());
 
       result = Result.SUCCESS;

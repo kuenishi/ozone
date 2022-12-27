@@ -19,6 +19,7 @@
 package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.hdds.utils.db.Table;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
@@ -48,24 +49,23 @@ public abstract class AbstractOMKeyDeleteResponse extends OmKeyResponse {
           LoggerFactory.getLogger(AbstractOMKeyDeleteResponse.class);
 
   // The key in delete table, *not* in key/file table
-  private String deleteKey;
+  private DeleteTablePrefix deleteTablePrefix;
   private List<OmKeyInfo> omKeyInfoList;
 
   public AbstractOMKeyDeleteResponse(
-      @Nonnull OMResponse omResponse, @Nonnull String deleteKey,
+      @Nonnull OMResponse omResponse, @Nonnull DeleteTablePrefix deleteTablePrefix,
       @Nonnull List<OmKeyInfo> keysToDelete) {
 
     super(omResponse);
-    this.deleteKey = deleteKey;
+    this.deleteTablePrefix = deleteTablePrefix;
     this.omKeyInfoList = keysToDelete;
   }
 
   public AbstractOMKeyDeleteResponse(@Nonnull OMResponse omResponse,
-      @Nonnull String deleteKey,
+      @Nonnull DeleteTablePrefix deleteTablePrefix,
       @Nonnull List<OmKeyInfo> keysToDelete, BucketLayout bucketLayout) {
-
     super(omResponse, bucketLayout);
-    this.deleteKey = deleteKey;
+    this.deleteTablePrefix = deleteTablePrefix;
     this.omKeyInfoList = keysToDelete;
   }
 
@@ -120,10 +120,7 @@ public abstract class AbstractOMKeyDeleteResponse extends OmKeyResponse {
       }
 
       // Append object ID to the deletion key in the delete table for uniqueness
-      String key = new StringBuilder(deleteKey)
-              .append('-')
-              .append(omKeyInfo.getObjectID())
-              .toString();
+      String key = deleteTablePrefix.buildKey(omKeyInfo);
 
       // Making sure that the corresponding UpdateID has no duplication (no
       // implicit block leak). This check should be cheap because RocksDB

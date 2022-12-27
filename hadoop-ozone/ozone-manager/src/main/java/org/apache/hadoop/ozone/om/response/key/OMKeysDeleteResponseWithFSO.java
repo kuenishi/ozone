@@ -18,6 +18,7 @@
 package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
@@ -47,12 +48,12 @@ public class OMKeysDeleteResponseWithFSO extends OMKeysDeleteResponse {
   private long volumeId;
 
   public OMKeysDeleteResponseWithFSO(
-      @NotNull OzoneManagerProtocolProtos.OMResponse omResponse,
-      @NotNull String deleteKey,
-      @NotNull List<OmKeyInfo> keyDeleteList,
-      @NotNull List<OmKeyInfo> dirDeleteList,
-      @NotNull OmBucketInfo omBucketInfo, @Nonnull long volId) {
-    super(omResponse, deleteKey, keyDeleteList, omBucketInfo);
+          @NotNull OzoneManagerProtocolProtos.OMResponse omResponse,
+          @NotNull DeleteTablePrefix deleteTablePrefix,
+          @NotNull List<OmKeyInfo> keyDeleteList,
+          @NotNull List<OmKeyInfo> dirDeleteList,
+          @NotNull OmBucketInfo omBucketInfo, @Nonnull long volId) {
+    super(omResponse, deleteTablePrefix, keyDeleteList, omBucketInfo);
     this.dirsList = dirDeleteList;
     this.volumeId = volId;
   }

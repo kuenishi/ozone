@@ -19,6 +19,7 @@
 package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.ozone.OmUtils;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OzoneFSUtils;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
@@ -80,9 +81,9 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
     Map<String, OmKeyInfo> keysToDelete = addOpenKeysToDB(volumeName, 3);
     Map<String, OmKeyInfo> keysToKeep = addOpenKeysToDB(volumeName, 3);
 
-    String delKey = OmUtils.preifxForDeleteTable(Time.now(), 360L);
+    DeleteTablePrefix prefix = new DeleteTablePrefix(Time.now(), 360L);
 
-    createAndCommitResponse(keysToDelete, delKey, Status.OK);
+    createAndCommitResponse(keysToDelete, prefix, Status.OK);
 
     RepeatedOmKeyInfo deletedKeyInfos =
             omMetadataManager.getDeletedTable().get("0");
@@ -102,8 +103,11 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
           .isExist(entry.getKey()));
     }
 
-    // Empty blocks won't be written to delete table
-    Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(delKey));
+    // Empty blocks won't be written to delete tables
+    for (Map.Entry<String, OmKeyInfo> entry: keysToDelete.entrySet()) {
+      String delKey = prefix.buildKey(entry.getValue());
+      Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(delKey));
+    }
   }
 
   /**
@@ -119,12 +123,11 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
     Map<String, OmKeyInfo> keysToKeep = addOpenKeysToDB(volumeName, 3,
         KEY_LENGTH);
 
-    String deletePrefix = OmUtils.preifxForDeleteTable(Time.now(), 360L);
-    createAndCommitResponse(keysToDelete, deletePrefix, Status.OK);
+    DeleteTablePrefix prefix = new DeleteTablePrefix(Time.now(), 360L);
+    createAndCommitResponse(keysToDelete, prefix, Status.OK);
 
     for (Map.Entry<String, OmKeyInfo> entry: keysToDelete.entrySet()) {
-      String deleteKey = new StringBuilder(deletePrefix).append('-')
-              .append(entry.getValue().getObjectID()).toString();
+      String deleteKey = prefix.buildKey(entry.getValue());
       // UpdateID in keysToDelete is zero by default. Timestamp is the value
       // set in the mock above.
       // Deletion (insert to delete table) should be committed as well.
@@ -147,8 +150,7 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
       Assert.assertTrue(omMetadataManager.getOpenKeyTable(getBucketLayout())
           .isExist(entry.getKey()));
 
-      String deleteKey = new StringBuilder(deletePrefix).append('-')
-              .append(entry.getValue().getObjectID()).toString();
+      String deleteKey = prefix.buildKey(entry.getValue());
       RepeatedOmKeyInfo deletedKeyInfos =
               omMetadataManager.getDeletedTable().get(deleteKey);
       Assert.assertNull(deletedKeyInfos);
@@ -166,23 +168,23 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
             omMetadataManager, getBucketLayout());
     Map<String, OmKeyInfo> keysToDelete = addOpenKeysToDB(volumeName, 3);
 
-    String delKey = OmUtils.preifxForDeleteTable(Time.now(), 360L);
+    DeleteTablePrefix prefix = new DeleteTablePrefix(Time.now(), 360L);
 
-    createAndCommitResponse(keysToDelete, delKey, Status.INTERNAL_ERROR);
+    createAndCommitResponse(keysToDelete, prefix, Status.INTERNAL_ERROR);
 
-    RepeatedOmKeyInfo deletedKeyInfos =
-            omMetadataManager.getDeletedTable().get(delKey);
-    Assert.assertNull(deletedKeyInfos);
-
-    for (String key: keysToDelete.keySet()) {
+    for (Map.Entry<String, OmKeyInfo> entry: keysToDelete.entrySet()) {
+      String key = entry.getKey();
       // If an error occurs in the response, the batch operation moving keys
       // from the open key table to the delete table should not be committed.
       Assert.assertTrue(
           omMetadataManager.getOpenKeyTable(getBucketLayout()).isExist(key));
-    }
 
-    // Deletion (insert to delete table) should not be committed as well.
-    Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(delKey));
+      // Deletion (insert to delete table) should not be committed as well.
+      String deleteKey = prefix.buildKey(entry.getValue());
+      RepeatedOmKeyInfo deletedKeyInfo =
+              omMetadataManager.getDeletedTable().get(deleteKey);
+      Assert.assertNull(deletedKeyInfo);
+    }
   }
 
   /**
@@ -193,7 +195,7 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
    * @throws Exception
    */
   private void createAndCommitResponse(Map<String, OmKeyInfo> keysToDelete,
-      String deletePrefix, Status status) throws Exception {
+      DeleteTablePrefix deleteTablePrefix, Status status) throws Exception {
 
     OMResponse omResponse = OMResponse.newBuilder()
         .setStatus(status)
@@ -201,7 +203,7 @@ public class TestOMOpenKeysDeleteResponse extends TestOMKeyResponse {
         .build();
 
     OMOpenKeysDeleteResponse response = new OMOpenKeysDeleteResponse(omResponse,
-        deletePrefix, keysToDelete, getBucketLayout());
+        deleteTablePrefix, keysToDelete, getBucketLayout());
 
     // Operations are only added to the batch by this method when status is OK.
     response.checkAndUpdateDB(omMetadataManager, batchOperation);

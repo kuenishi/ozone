@@ -23,8 +23,8 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.utils.db.cache.CacheKey;
 import org.apache.hadoop.hdds.utils.db.cache.CacheValue;
-import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.audit.AuditLogger;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.OMMetrics;
 import org.apache.hadoop.ozone.om.OzoneManager;
@@ -198,13 +198,14 @@ public class OMKeysDeleteRequest extends OMKeyRequest {
       omBucketInfo.incrUsedBytes(-quotaReleased);
       omBucketInfo.incrUsedNamespace(-1L * omKeyInfoList.size());
 
-      String deleteKey = OmUtils.preifxForDeleteTable(
+      DeleteTablePrefix deleteTablePrefix = new DeleteTablePrefix(
               deleteKeyArgs.getModificationTime(), trxnLogIndex);
 
       final long volumeId = omMetadataManager.getVolumeId(volumeName);
       omClientResponse =
           getOmClientResponse(ozoneManager, omKeyInfoList, dirList, omResponse,
-              unDeletedKeys, deleteStatus, omBucketInfo, volumeId, deleteKey);
+              unDeletedKeys, deleteStatus, omBucketInfo, volumeId,
+              deleteTablePrefix);
 
       result = Result.SUCCESS;
 
@@ -279,7 +280,7 @@ public class OMKeysDeleteRequest extends OMKeyRequest {
       OMResponse.Builder omResponse,
       OzoneManagerProtocolProtos.DeleteKeyArgs.Builder unDeletedKeys,
       boolean deleteStatus, OmBucketInfo omBucketInfo, long volumeId,
-      String deleteKey) {
+      DeleteTablePrefix deleteTablePrefix) {
     OMClientResponse omClientResponse;
 
     omClientResponse = new OMKeysDeleteResponse(omResponse
@@ -287,7 +288,7 @@ public class OMKeysDeleteRequest extends OMKeyRequest {
             DeleteKeysResponse.newBuilder().setStatus(deleteStatus)
                 .setUnDeletedKeys(unDeletedKeys))
         .setStatus(deleteStatus ? OK : PARTIAL_DELETE).setSuccess(deleteStatus)
-        .build(), deleteKey, omKeyInfoList, omBucketInfo.copyObject());
+        .build(), deleteTablePrefix, omKeyInfoList, omBucketInfo.copyObject());
     return omClientResponse;
   }
 

@@ -19,6 +19,7 @@
 package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.hdds.utils.db.BatchOperation;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
@@ -44,9 +45,10 @@ public class OMKeysDeleteResponse extends AbstractOMKeyDeleteResponse {
   private OmBucketInfo omBucketInfo;
 
   public OMKeysDeleteResponse(@Nonnull OMResponse omResponse,
-      @Nonnull String deleteKey, @Nonnull List<OmKeyInfo> keysToDelete,
-      @Nonnull OmBucketInfo omBucketInfo) {
-    super(omResponse, deleteKey, keysToDelete);
+          @Nonnull DeleteTablePrefix deleteTablePrefix,
+          @Nonnull List<OmKeyInfo> keysToDelete,
+          @Nonnull OmBucketInfo omBucketInfo) {
+    super(omResponse, deleteTablePrefix, keysToDelete);
     this.omBucketInfo = omBucketInfo;
   }
 

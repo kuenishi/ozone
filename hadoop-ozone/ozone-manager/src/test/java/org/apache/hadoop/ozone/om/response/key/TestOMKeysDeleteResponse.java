@@ -19,6 +19,7 @@
 package org.apache.hadoop.ozone.om.response.key;
 
 import org.apache.hadoop.ozone.OmUtils;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.request.OMRequestTestUtils;
@@ -82,7 +83,7 @@ public class TestOMKeysDeleteResponse extends TestOMKeyResponse {
             .setDeleteKeysResponse(DeleteKeysResponse.newBuilder()
                 .setStatus(true)).build();
 
-    String deleteKey = OmUtils.preifxForDeleteTable(Time.now(), 360L);
+    DeleteTablePrefix prefix = new DeleteTablePrefix(Time.now(), 360L);
     OMClientResponse omKeysDeleteResponse = getOmKeysDeleteResponse(
         omResponse, omBucketInfo);
 
@@ -96,14 +97,17 @@ public class TestOMKeysDeleteResponse extends TestOMKeyResponse {
 
     // deleteKey had no block information associated with it, so it should have
     // been removed from the key table but not added to the delete table.
-    Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(deleteKey));
+    for (OmKeyInfo omKeyInfo : omKeyInfoList) {
+      String deleteKey = prefix.buildKey(omKeyInfo);
+      Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(deleteKey));
+    }
   }
 
   protected OMClientResponse getOmKeysDeleteResponse(OMResponse omResponse,
       OmBucketInfo omBucketInfo) {
-    String deleteKey = OmUtils.preifxForDeleteTable(Time.now(), 360L);
+    DeleteTablePrefix prefix = new DeleteTablePrefix(Time.now(), 360L);
 
-    return new OMKeysDeleteResponse(omResponse, deleteKey,
+    return new OMKeysDeleteResponse(omResponse, prefix,
         omKeyInfoList, omBucketInfo);
   }
 
@@ -121,9 +125,9 @@ public class TestOMKeysDeleteResponse extends TestOMKeyResponse {
         .setVolumeName(volumeName).setBucketName(bucketName)
         .setCreationTime(Time.now()).build();
 
-    String deleteKey = OmUtils.preifxForDeleteTable(Time.now(), 360L);
+    DeleteTablePrefix prefix = new DeleteTablePrefix(Time.now(), 360L);
     OMClientResponse omKeysDeleteResponse = new OMKeysDeleteResponse(
-        omResponse, deleteKey, omKeyInfoList, omBucketInfo);
+        omResponse, prefix, omKeyInfoList, omBucketInfo);
 
     omKeysDeleteResponse.checkAndUpdateDB(omMetadataManager, batchOperation);
 
@@ -133,6 +137,9 @@ public class TestOMKeysDeleteResponse extends TestOMKeyResponse {
     }
 
     // On failure, deletion (insert to delete table) should not be committed.
-    Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(deleteKey));
+    for (OmKeyInfo omKeyInfo : omKeyInfoList) {
+      String deleteKey = prefix.buildKey(omKeyInfo);
+      Assert.assertFalse(omMetadataManager.getDeletedTable().isExist(deleteKey));
+    }
   }
 }

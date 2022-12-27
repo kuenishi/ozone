@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import org.apache.hadoop.hdds.utils.db.cache.CacheKey;
 import org.apache.hadoop.hdds.utils.db.cache.CacheValue;
 import org.apache.hadoop.ozone.OmUtils;
+import org.apache.hadoop.ozone.om.DeleteTablePrefix;
 import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.OMMetrics;
 import org.apache.hadoop.ozone.om.OzoneManager;
@@ -114,11 +115,11 @@ public class OMOpenKeysDeleteRequest extends OMKeyRequest {
             openKeyBucket, deletedOpenKeys);
       }
 
-      String deleteKey = OmUtils.preifxForDeleteTable(
+      DeleteTablePrefix prefix = new DeleteTablePrefix(
           deleteOpenKeysRequest.getModificationTime(),
           trxnLogIndex);
       omClientResponse = new OMOpenKeysDeleteResponse(omResponse.build(),
-          deleteKey, deletedOpenKeys, getBucketLayout());
+          prefix, deletedOpenKeys, getBucketLayout());
 
       result = Result.SUCCESS;
     } catch (IOException ex) {
